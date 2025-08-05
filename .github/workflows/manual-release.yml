@@ -1,0 +1,112 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: 'Module name to release (e.g., scheduled-function)'
+        required: true
+        type: string
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes (optional)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  validate-input:
+    name: Validate Input
+    runs-on: ubuntu-latest
+    outputs:
+      module-exists: ${{ steps.check-module.outputs.exists }}
+      version-valid: ${{ steps.check-version.outputs.valid }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check if module exists
+        id: check-module
+        run: |
+          if [ -d "terraform/modules/${{ github.event.inputs.module }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Module ${{ github.event.inputs.module }} exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "❌ Module ${{ github.event.inputs.module }} does not exist"
+            exit 1
+          fi
+
+      - name: Validate version format
+        id: check-version
+        run: |
+          version="${{ github.event.inputs.version }}"
+          if [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "valid=true" >> $GITHUB_OUTPUT
+            echo "✅ Version format is valid: $version"
+          else
+            echo "valid=false" >> $GITHUB_OUTPUT
+            echo "❌ Version format is invalid: $version (expected format: x.y.z)"
+            exit 1
+          fi
+
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: validate-input
+    if: needs.validate-input.outputs.module-exists == 'true' && needs.validate-input.outputs.version-valid == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if tag already exists
+        run: |
+          tag_name="${{ github.event.inputs.module }}-v${{ github.event.inputs.version }}"
+          if git tag -l | grep -q "^$tag_name$"; then
+            echo "❌ Tag $tag_name already exists"
+            exit 1
+          else
+            echo "✅ Tag $tag_name is available"
+          fi
+
+      - name: Generate release notes
+        id: generate-notes
+        run: |
+          module="${{ github.event.inputs.module }}"
+          version="${{ github.event.inputs.version }}"
+          user_notes="${{ github.event.inputs.release_notes }}"
+          
+          # Create release notes
+          {
+            echo "# $module v$version"
+            echo ""
+            if [ -n "$user_notes" ]; then
+              echo "$user_notes"
+              echo ""
+            fi
+            echo "## Usage"
+            echo ""
+            echo '```hcl'
+            echo "module \"$module\" {"
+            echo "  source = \"git::https://github.com/${{ github.repository }}.git//terraform/modules/$module?ref=$module-v$version\""
+            echo "  "
+            echo "  # Module configuration"
+            echo "}"
+            echo '```'
+          } > release_notes.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.module }}-v${{ github.event.inputs.version }}
+          name: "${{ github.event.inputs.module }} v${{ github.event.inputs.version }}"
+          body_path: release_notes.md
+          draft: false
+          prerelease: false 
