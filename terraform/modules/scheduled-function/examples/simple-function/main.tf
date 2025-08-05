@@ -33,7 +33,7 @@ module "daily_health_check" {
   secrets_project_id = var.secrets_project_id
   source_dir         = "./function-code"
   main_file          = "health_check.py"
-  schedule           = "0 9 * * *"  # 9 AM daily
+  schedule           = "0 9 * * *" # 9 AM daily
   description        = "Daily health check function"
 
   environment_variables = {

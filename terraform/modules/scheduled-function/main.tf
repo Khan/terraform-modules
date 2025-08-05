@@ -4,7 +4,7 @@
 # Required providers
 terraform {
   required_version = ">= 1.3.0"
-  
+
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -35,7 +35,7 @@ resource "google_storage_bucket" "function_bucket" {
   name                        = "${var.function_name}-source-${var.project_id}"
   location                    = var.region
   uniform_bucket_level_access = true
-  
+
   # Optional: Add lifecycle rules to clean up old versions
   lifecycle_rule {
     condition {
@@ -50,7 +50,7 @@ resource "google_storage_bucket" "function_bucket" {
 # Install dependencies (if requirements file exists)
 resource "null_resource" "install_dependencies" {
   count = fileexists("${var.source_dir}/${var.requirements_file}") ? 1 : 0
-  
+
   triggers = {
     # Re-run if requirements file changes
     requirements_hash = filemd5("${var.source_dir}/${var.requirements_file}")
@@ -59,7 +59,7 @@ resource "null_resource" "install_dependencies" {
   }
 
   provisioner "local-exec" {
-    command = var.dependency_install_script != null ? var.dependency_install_script : var.install_deps_command
+    command     = var.dependency_install_script != null ? var.dependency_install_script : var.install_deps_command
     working_dir = var.source_dir
   }
 }
@@ -106,7 +106,7 @@ resource "google_secret_manager_secret_iam_member" "function_secret_access" {
   for_each = {
     for secret in var.secrets : secret.env_var_name => secret
   }
-  
+
   project   = var.secrets_project_id
   secret_id = each.value.secret_id
   role      = "roles/secretmanager.secretAccessor"
@@ -123,14 +123,14 @@ resource "google_cloudfunctions2_function" "function" {
   build_config {
     runtime     = var.runtime
     entry_point = var.entry_point
-    
+
     source {
       storage_source {
         bucket = google_storage_bucket.function_bucket.name
         object = google_storage_bucket_object.function_archive.name
       }
     }
-    
+
     environment_variables = merge(
       var.build_environment_variables,
       {
@@ -145,9 +145,9 @@ resource "google_cloudfunctions2_function" "function" {
     available_memory      = var.memory
     timeout_seconds       = var.timeout_seconds
     service_account_email = google_service_account.function_sa.email
-    
+
     environment_variables = var.environment_variables
-    
+
     # Dynamic block for secret environment variables
     dynamic "secret_environment_variables" {
       for_each = var.secrets
