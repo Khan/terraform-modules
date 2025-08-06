@@ -31,7 +31,7 @@ output "terraform_state_bucket" {
 }
 
 output "service_name" {
-  description = "The Terraform setup name used for this CI configuration"
+  description = "The unique identifier for this Terraform configuration and environment managed in CI"
   value       = var.service_name
 }
 

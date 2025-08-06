@@ -39,13 +39,12 @@ module "culture_cron_terraform_ci" {
   source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/github-ci-bootstrap?ref=v1.0.0"
 
   # Terraform configuration managed in CI
-  service_name      = "culture-cron-prod"        # Name of this Terraform configuration
+  service_name      = "culture-cron-prod"        # YOU choose this name: project + environment
   github_repository = "Khan/culture-cron"        # GitHub repo containing the Terraform code
   
   # Target projects where this Terraform configuration deploys resources via CI
   target_projects = {
-    prod = {
-      project_id        = "khan-academy"
+    "khan-academy" = {
       required_services = ["cloudfunctions", "storage", "pubsub", "scheduler"]
     }
   }
@@ -64,25 +63,23 @@ module "culture_cron_terraform_ci" {
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| `service_name` | Name of the Terraform setup/environment for CI operations (e.g., 'culture-cron-prod', 'webapp-staging') | `string` | n/a | yes |
+| `service_name` | User-defined unique identifier for this Terraform configuration and environment (e.g., 'culture-cron-prod', 'webapp-staging') | `string` | n/a | yes |
 | `github_repository` | GitHub repository containing the Terraform configuration in format 'org/repo' | `string` | n/a | yes |
-| `target_projects` | Map of GCP projects where this Terraform configuration will deploy resources | `map(object)` | `{}` | no |
+| `target_projects` | Map of GCP projects where this Terraform configuration will deploy resources. Keys are project IDs. | `map(object)` | `{}` | no |
 | `terraform_state_bucket` | GCS bucket name for storing Terraform state for this configuration | `string` | `terraform-{org}-{repo}-{service}` | no |
 | `secrets_project_id` | Project ID where secrets needed by the Terraform configuration are stored | `string` | `"khan-academy"` | no |
 | `secret_ids` | List of secret IDs that the Terraform configuration needs access to | `list(string)` | `[]` | no |
 
 ### Target Projects Structure
 
-The `target_projects` variable accepts a map where each key is a logical name and the value contains:
+The `target_projects` variable accepts a map where each key is a GCP project ID:
 
 ```hcl
 target_projects = {
-  prod = {
-    project_id        = "khan-academy"           # GCP project ID
+  "khan-academy" = {
     required_services = ["storage", "pubsub"]    # Services needed in this project
   }
-  staging = {
-    project_id        = "khan-academy-staging"
+  "khan-academy-staging" = {
     required_services = ["cloudfunctions"]
   }
 }
@@ -101,12 +98,61 @@ These services correspond to GCP resources that your Terraform configuration can
 
 If `terraform_state_bucket` is not specified, the module automatically generates a bucket name based on your GitHub repository and service name:
 
-- **Pattern**: `terraform-{org}-{repo}-{service}` (normalized to lowercase)
+- **Pattern**: `terraform-{org}-{repo}-{service}` (normalized for GCS bucket naming rules)
+- **Normalization**: Converted to lowercase, underscores replaced with hyphens
 - **Example**: `Khan/culture-cron` + `culture-cron-prod` → `terraform-khan-culture-cron-culture-cron-prod`
 - **Example**: `Khan/webapp` + `webapp-staging` → `terraform-khan-webapp-webapp-staging`
-- **Example**: `Khan/Mobile-App` + `mobile-app-prod` → `terraform-khan-mobile-app-mobile-app-prod`
+- **Example**: `Khan/Mobile_App` + `mobile_app_prod` → `terraform-khan-mobile-app-mobile-app-prod`
 
-This ensures each Terraform setup gets its own isolated state bucket while maintaining consistent, predictable naming.
+This ensures each Terraform setup gets its own isolated state bucket while maintaining consistent, predictable naming that complies with GCS bucket naming requirements.
+
+### Service Name Guidelines
+
+The `service_name` is a **user-defined identifier** that you choose yourself to distinguish different Terraform configurations managed in CI. This is not something you need to look up - you get to assign it based on your own naming conventions.
+
+#### How to Choose a Service Name
+
+**You should choose a name that clearly identifies:**
+1. **What service/application** this Terraform configuration manages
+2. **Which environment** (prod, staging, dev, etc.)
+3. **What scope** (if you have multiple Terraform configurations per service)
+
+#### Recommended Patterns
+
+- **Basic**: `{service}-{environment}` (e.g., `culture-cron-prod`, `webapp-staging`)
+- **With scope**: `{service}-{scope}-{environment}` (e.g., `webapp-frontend-prod`, `webapp-backend-staging`)
+- **Shared resources**: `{purpose}-{environment}` (e.g., `shared-infra-prod`, `monitoring-dev`)
+
+#### Examples by Use Case
+
+| Scenario | Service Name | What It Represents |
+|----------|--------------|-------------------|
+| Culture Cron production | `culture-cron-prod` | Production deployment of Culture Cron service |
+| Webapp staging environment | `webapp-staging` | Staging environment for the main webapp |
+| API development environment | `api-dev` | Development environment for API service |
+| Shared infrastructure | `shared-infra-prod` | Production shared infrastructure (networking, etc.) |
+| Multiple configs per service | `webapp-frontend-prod`<br/>`webapp-backend-prod` | Separate Terraform configs for frontend and backend |
+
+#### Technical Requirements
+
+- **Characters**: Lowercase letters, numbers, and hyphens only (no underscores)
+- **Uniqueness**: Must be unique across all your Terraform CI configurations
+- **Purpose**: Creates isolated CI infrastructure for each configuration
+- **Usage**: Used to generate service account names, state bucket names, and provider IDs
+
+#### Multi-Configuration Repositories
+
+A single GitHub repository can have multiple `service_name` values for different purposes:
+- Different environments (`myapp-prod`, `myapp-staging`, `myapp-dev`)
+- Different components (`myapp-frontend-prod`, `myapp-backend-prod`)
+- Different deployment scopes (`myapp-us-prod`, `myapp-eu-prod`)
+
+Each `service_name` gets its own isolated:
+- Service account (`{service_name}-ci`)
+- Terraform state bucket (`terraform-{org}-{repo}-{service_name}`)
+- Workload Identity provider (`{service_name}-provider`)
+
+**Note**: GitHub repository names may contain underscores, which will be automatically converted to hyphens in generated bucket names to comply with GCS naming requirements.
 
 ## Outputs
 
@@ -115,7 +161,7 @@ This ensures each Terraform setup gets its own isolated state bucket while maint
 | `service_account_email` | Email of the created service account |
 | `workload_identity_provider` | Full resource name of the Workload Identity provider |
 | `terraform_state_bucket` | The GCS bucket name used for Terraform state (computed or provided) |
-| `service_name` | The Terraform setup name used for this configuration |
+| `service_name` | The unique identifier for this Terraform configuration and environment |
 | `target_projects` | Map of target projects configured |
 
 ## GitHub Actions Configuration
@@ -164,8 +210,7 @@ module "culture_cron_prod_ci" {
   
   # This Terraform config deploys resources to khan-academy project
   target_projects = {
-    prod = {
-      project_id        = "khan-academy"
+    "khan-academy" = {
       required_services = ["cloudfunctions", "storage", "pubsub", "scheduler"]
     }
   }
@@ -185,12 +230,10 @@ module "webapp_staging_ci" {
   
   # This Terraform config deploys resources to multiple projects
   target_projects = {
-    staging = {
-      project_id        = "khan-academy-staging"
+    "khan-academy-staging" = {
       required_services = ["storage", "pubsub"]
     }
-    shared = {
-      project_id        = "khan-shared-services"
+    "khan-shared-services" = {
       required_services = ["storage"]
     }
   }
@@ -209,8 +252,7 @@ module "api_prod_ci" {
   github_repository = "Khan/api"
   
   target_projects = {
-    prod = {
-      project_id        = "khan-academy"
+    "khan-academy" = {
       required_services = ["cloudfunctions", "storage"]
     }
   }
@@ -237,8 +279,7 @@ module "static_site_prod_ci" {
   
   # This Terraform config only creates storage buckets
   target_projects = {
-    prod = {
-      project_id        = "khan-academy"
+    "khan-academy" = {
       required_services = ["storage"]
     }
   }

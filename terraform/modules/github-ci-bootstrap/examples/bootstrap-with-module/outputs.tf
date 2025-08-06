@@ -11,7 +11,7 @@ output "workload_identity_provider" {
 }
 
 output "service_name" {
-  description = "The Terraform setup name used for this CI configuration"
+  description = "The unique identifier for this Terraform configuration and environment managed in CI"
   value       = module.culture_cron_bootstrap.service_name
 }
 

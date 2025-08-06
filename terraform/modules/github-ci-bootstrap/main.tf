@@ -25,18 +25,19 @@ locals {
   github_org  = split("/", var.github_repository)[0]
   github_repo = split("/", var.github_repository)[1]
 
-  # Compute default bucket name: terraform-{org}-{repo}-{service} (normalized to lowercase)
-  default_bucket_name = "terraform-${lower(local.github_org)}-${lower(local.github_repo)}-${lower(var.service_name)}"
+  # Compute default bucket name: terraform-{org}-{repo}-{service} (normalized for GCS bucket naming rules)
+  # GCS bucket names: lowercase letters, numbers, hyphens only (no underscores)
+  default_bucket_name = replace("terraform-${lower(local.github_org)}-${lower(local.github_repo)}-${lower(var.service_name)}", "_", "-")
 
   # Use provided bucket name or computed default
   terraform_state_bucket = coalesce(var.terraform_state_bucket, local.default_bucket_name)
 
   # Flatten target_projects into individual service permissions
   project_service_permissions = flatten([
-    for proj_key, proj in var.target_projects : [
-      for service in proj.required_services : {
-        key        = "${proj_key}-${service}"
-        project_id = proj.project_id
+    for project_id, config in var.target_projects : [
+      for service in config.required_services : {
+        key        = "${project_id}-${service}"
+        project_id = project_id
         service    = service
         role       = local.service_roles[service]
       }
@@ -67,33 +68,29 @@ resource "google_project_iam_member" "ci_service_permissions" {
 # Cloud Functions requires service account user role
 resource "google_project_iam_member" "ci_sa_user" {
   for_each = {
-    for proj_key, proj in var.target_projects : proj_key => proj
-    if contains(proj.required_services, "cloudfunctions")
+    for project_id, config in var.target_projects : project_id => config
+    if contains(config.required_services, "cloudfunctions")
   }
 
-  project = each.value.project_id
+  project = each.key
   role    = "roles/iam.serviceAccountUser"
   member  = "serviceAccount:${google_service_account.github_ci.email}"
 }
 
 # Allow creating and deleting service accounts (needed for Terraform)
 resource "google_project_iam_member" "ci_sa_admin" {
-  for_each = {
-    for proj_key, proj in var.target_projects : proj_key => proj.project_id
-  }
+  for_each = var.target_projects
 
-  project = each.value
+  project = each.key
   role    = "roles/iam.serviceAccountAdmin"
   member  = "serviceAccount:${google_service_account.github_ci.email}"
 }
 
 # Allow creating IAM bindings (e.g. google_project_iam_member)
 resource "google_project_iam_member" "ci_iam_admin" {
-  for_each = {
-    for proj_key, proj in var.target_projects : proj_key => proj.project_id
-  }
+  for_each = var.target_projects
 
-  project = each.value
+  project = each.key
   role    = "roles/resourcemanager.projectIamAdmin"
   member  = "serviceAccount:${google_service_account.github_ci.email}"
 }

@@ -33,8 +33,7 @@ module "culture_cron_bootstrap" {
 
   # Target projects - culture-cron deploys to khan-internal-services
   target_projects = {
-    prod = {
-      project_id        = var.project_id
+    (var.project_id) = {
       required_services = ["cloudfunctions", "storage", "pubsub", "scheduler"]
     }
   }
