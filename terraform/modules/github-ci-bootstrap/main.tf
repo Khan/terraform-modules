@@ -162,7 +162,7 @@ resource "google_iam_workload_identity_pool_provider" "github_ci_provider" {
   project                            = data.google_project.khan_internal_services.number
   workload_identity_pool_id          = google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id
   workload_identity_pool_provider_id = "${var.service_name}-provider"
-  display_name                       = "${var.service_name} GitHub Provider"
+  display_name                       = substr("${var.service_name} GitHub", 0, 32)
   attribute_mapping = {
     "google.subject"       = "assertion.sub"
     "attribute.repository" = "assertion.repository"
