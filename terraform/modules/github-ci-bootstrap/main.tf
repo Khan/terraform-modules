@@ -151,7 +151,7 @@ resource "google_iam_workload_identity_pool" "github_ci_pool" {
   provider                  = google
   project                   = data.google_project.khan_internal_services.number
   workload_identity_pool_id = "khan-internal-services-github-ci"
-  display_name              = "Khan Internal Services GitHub CI Pool"
+  display_name              = "Khan GitHub CI Pool"
 
   lifecycle {
     # Prevent deletion if other services are still using this pool
