@@ -11,7 +11,7 @@ Creates a complete scheduled function setup:
 - Service account with least-privilege permissions
 - Storage bucket with lifecycle management
 - Secret Manager IAM bindings
-- Automatic dependency installation
+
 - Source code change detection
 
 ## Quick Start
@@ -120,9 +120,7 @@ module "data_processor" {
       version      = "2"
     }
   ]
-  
-  # Custom dependency installation
-  dependency_install_script = "pip install -r requirements.txt -t . && pip install tensorflow -t ."
+
 }
 ```
 
@@ -132,7 +130,7 @@ module "data_processor" {
 ```hcl
 resource "google_service_account" "function_sa" { ... }
 resource "google_storage_bucket" "function_bucket" { ... }
-resource "null_resource" "install_dependencies" { ... }
+
 data "archive_file" "function_archive" { ... }
 resource "google_storage_bucket_object" "function_archive" { ... }
 resource "google_pubsub_topic" "function_topic" { ... }
@@ -239,7 +237,3 @@ terraform apply
 | `"0 2 * * *"` | 2 AM daily |
 | `"0 9 * * 1"` | Monday 9 AM |
 | `"*/15 * * * *"` | Every 15 minutes |
-
-## License
-
-Maintained by Khan Academy. 

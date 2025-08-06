@@ -134,16 +134,3 @@ variable "requirements_file" {
   type        = string
   default     = "requirements.txt"
 }
-
-variable "install_deps_command" {
-  description = "Command to install dependencies (relative to source_dir)"
-  type        = string
-  default     = "pip install -r requirements.txt -t ."
-}
-
-# Optional: custom dependency installation
-variable "dependency_install_script" {
-  description = "Custom script to run for dependency installation (overrides install_deps_command)"
-  type        = string
-  default     = null
-} 

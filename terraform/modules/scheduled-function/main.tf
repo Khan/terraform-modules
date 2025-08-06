@@ -14,10 +14,6 @@ terraform {
       source  = "hashicorp/archive"
       version = ">= 2.0.0"
     }
-    null = {
-      source  = "hashicorp/null"
-      version = ">= 3.0.0"
-    }
   }
 }
 
@@ -36,31 +32,19 @@ resource "google_storage_bucket" "function_bucket" {
   location                    = var.region
   uniform_bucket_level_access = true
 
-  # Optional: Add lifecycle rules to clean up old versions
+  # Enable versioned objects
+  versioning {
+    enabled = true
+  }
+
+  # Keep only the 3 most recent versions of each object
   lifecycle_rule {
     condition {
-      age = 7 # Keep old versions for 7 days
+      num_newer_versions = 3
     }
     action {
       type = "Delete"
     }
-  }
-}
-
-# Install dependencies (if requirements file exists)
-resource "null_resource" "install_dependencies" {
-  count = fileexists("${var.source_dir}/${var.requirements_file}") ? 1 : 0
-
-  triggers = {
-    # Re-run if requirements file changes
-    requirements_hash = filemd5("${var.source_dir}/${var.requirements_file}")
-    # Re-run if source files change
-    source_files_hash = sha256(join("", [for f in fileset(var.source_dir, "**") : filemd5("${var.source_dir}/${f}")]))
-  }
-
-  provisioner "local-exec" {
-    command     = var.dependency_install_script != null ? var.dependency_install_script : var.install_deps_command
-    working_dir = var.source_dir
   }
 }
 
@@ -70,13 +54,11 @@ data "archive_file" "function_archive" {
   output_path = "${path.module}/${var.function_name}-function.zip"
   source_dir  = var.source_dir
   excludes    = var.excludes
-
-  depends_on = [null_resource.install_dependencies]
 }
 
 # Upload function archive to storage bucket
 resource "google_storage_bucket_object" "function_archive" {
-  name   = "${var.function_name}-${data.archive_file.function_archive.output_md5}.zip"
+  name   = "${var.function_name}-function.zip"
   bucket = google_storage_bucket.function_bucket.name
   source = data.archive_file.function_archive.output_path
 }
