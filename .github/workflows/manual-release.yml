@@ -35,10 +35,10 @@ jobs:
         run: |
           if [ -d "terraform/modules/${{ github.event.inputs.module }}" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
-            echo "✅ Module ${{ github.event.inputs.module }} exists"
+            echo "Module ${{ github.event.inputs.module }} exists"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
-            echo "❌ Module ${{ github.event.inputs.module }} does not exist"
+            echo "ERROR: Module ${{ github.event.inputs.module }} does not exist"
             exit 1
           fi
 
@@ -48,10 +48,10 @@ jobs:
           version="${{ github.event.inputs.version }}"
           if [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "valid=true" >> $GITHUB_OUTPUT
-            echo "✅ Version format is valid: $version"
+            echo "Version format is valid: $version"
           else
             echo "valid=false" >> $GITHUB_OUTPUT
-            echo "❌ Version format is invalid: $version (expected format: x.y.z)"
+            echo "ERROR: Version format is invalid: $version (expected format: x.y.z)"
             exit 1
           fi
 
@@ -66,15 +66,45 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check if tag already exists
+      - name: Check version constraints
         run: |
-          tag_name="${{ github.event.inputs.module }}-v${{ github.event.inputs.version }}"
+          module="${{ github.event.inputs.module }}"
+          new_version="${{ github.event.inputs.version }}"
+          tag_name="$module-v$new_version"
+          
+          # Check if exact tag already exists
           if git tag -l | grep -q "^$tag_name$"; then
-            echo "❌ Tag $tag_name already exists"
+            echo "ERROR: Tag $tag_name already exists"
             exit 1
-          else
-            echo "✅ Tag $tag_name is available"
           fi
+          
+          # Get latest version for this module
+          latest_tag=$(git tag -l "${module}-v*" | sort -V | tail -n1)
+          
+          if [ -n "$latest_tag" ]; then
+            latest_version=${latest_tag#${module}-v}
+            echo "Latest existing version: $latest_version"
+            echo "New version: $new_version"
+            
+            # Compare versions using sort -V (version sort)
+            higher_version=$(echo -e "$latest_version\n$new_version" | sort -V | tail -n1)
+            
+            if [ "$higher_version" = "$latest_version" ] && [ "$new_version" != "$latest_version" ]; then
+              echo "ERROR: New version $new_version is not greater than latest version $latest_version"
+              echo "Next valid versions would be:"
+              
+              # Suggest next versions
+              IFS='.' read -r major minor patch <<< "$latest_version"
+              echo "   - Patch: $major.$minor.$((patch + 1))"
+              echo "   - Minor: $major.$((minor + 1)).0"  
+              echo "   - Major: $((major + 1)).0.0"
+              exit 1
+            fi
+          else
+            echo "No existing versions found for module $module"
+          fi
+          
+          echo "Version $new_version is valid and available"
 
       - name: Generate release notes
         id: generate-notes

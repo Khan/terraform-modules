@@ -35,12 +35,8 @@ Each module is self-contained in its own directory under `terraform/modules/` an
 
 ## Versioning
 
-Module versions are managed manually using GitHub Actions.
+Module versions are managed manually using GitHub Actions. 
 
-To create a new release:
-1. Go to Actions → Manual Release
-2. Enter module name and version number
-3. Add release notes (optional)
-4. Run the workflow
+See the [Contributing Guide](.github/CONTRIBUTING.md#releases) for details on creating releases.
 
 Check the [Releases](../../releases) page for available versions.

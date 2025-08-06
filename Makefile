@@ -23,12 +23,12 @@ tflint-install: deps
 		echo "Installing tflint v${TFLINT_VERSION}..."; \
 		echo "Downloading for OS: ${OS}, ARCH: ${ARCH}"; \
 		mkdir -p ${VENV}/bin; \
-		cd ${VENV}/bin; \
+		pushd ${VENV}/bin; \
 		curl -sL "https://github.com/terraform-linters/tflint/releases/download/v${TFLINT_VERSION}/tflint_${OS}_${ARCH}.zip" -o tflint.zip; \
 		unzip -o tflint.zip; \
 		rm tflint.zip; \
 		chmod +x tflint; \
-		cd -; \
+		popd; \
 		${VENV}/bin/tflint --init; \
 	fi
 
@@ -38,12 +38,12 @@ terraform-install: deps
 		echo "Installing terraform v${TERRAFORM_VERSION}..."; \
 		echo "Downloading for OS: ${OS}, ARCH: ${ARCH}"; \
 		mkdir -p ${VENV}/bin; \
-		cd ${VENV}/bin; \
+		pushd ${VENV}/bin; \
 		curl -sL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_${OS}_${ARCH}.zip" -o terraform.zip; \
 		unzip -o terraform.zip; \
 		rm terraform.zip; \
 		chmod +x terraform; \
-		cd -; \
+		popd; \
 	fi
 
 .PHONY: actionlint-install
@@ -52,22 +52,22 @@ actionlint-install: deps
 		echo "Installing actionlint v${ACTIONLINT_VERSION}..."; \
 		echo "Downloading for OS: ${OS}, ARCH: ${ARCH}"; \
 		mkdir -p ${VENV}/bin; \
-		cd ${VENV}/bin; \
+		pushd ${VENV}/bin; \
 		curl -sL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_${OS}_${ARCH}.tar.gz" -o actionlint.tar.gz; \
 		tar xzf actionlint.tar.gz; \
 		rm actionlint.tar.gz; \
 		chmod +x actionlint; \
-		cd -; \
+		popd; \
 	fi
 
 .PHONY: lint
 lint: tflint-install terraform-install actionlint-install
 	PATH=${VENV}/bin:$$PATH tflint --recursive
-	PATH=${VENV}/bin:$$PATH terraform -chdir=${TF_DIR} fmt -recursive -check
+	PATH=${VENV}/bin:$$PATH terraform fmt -recursive -check
 	PATH=${VENV}/bin:$$PATH actionlint $(git rev-parse --show-toplevel)
 
 .PHONY: fix
 fix: tflint-install terraform-install actionlint-install
 	PATH=${VENV}/bin:$$PATH tflint --recursive --fix
-	PATH=${VENV}/bin:$$PATH terraform -chdir=${TF_DIR} fmt -recursive
+	PATH=${VENV}/bin:$$PATH terraform fmt -recursive
 	PATH=${VENV}/bin:$$PATH actionlint $(git rev-parse --show-toplevel)
