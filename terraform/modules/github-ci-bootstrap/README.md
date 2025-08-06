@@ -1,48 +1,48 @@
-# Terraform CI Bootstrap Module
+# GitHub Terraform CI Bootstrap Module
 
-This module creates the necessary infrastructure for running **Terraform operations** (`terraform plan` and `terraform apply`) in GitHub Actions CI/CD pipelines. It provisions service accounts with appropriate GCP permissions and uses Workload Identity Federation for keyless authentication.
+This module creates the necessary infrastructure for **GitHub Terraform CI** - managing Terraform infrastructure through GitHub Actions CI/CD pipelines. It provisions service accounts with appropriate GCP permissions and uses Workload Identity Federation for keyless authentication to run `terraform plan` and `terraform apply` operations.
 
 ## Purpose
 
-Each module invocation creates a dedicated service account for a complete Terraform setup/configuration. This enables:
+Each module invocation creates a dedicated service account for a complete Terraform configuration managed in CI. This enables:
 
-- **Isolated Terraform Operations**: Each Terraform setup gets its own service account and state bucket
-- **Secure CI/CD**: Run `terraform plan` and `terraform apply` in GitHub Actions without storing keys
-- **Cross-Project Deployments**: Single service account can manage resources across multiple GCP projects  
-- **Environment Separation**: Separate service accounts for prod, staging, dev, etc.
+- **Isolated Terraform CI**: Each Terraform setup gets its own service account and state bucket for CI operations
+- **Secure GitHub Actions**: Run `terraform plan` and `terraform apply` in GitHub Actions without storing keys
+- **Cross-Project Deployments**: Single service account can manage Terraform resources across multiple GCP projects  
+- **Environment Separation**: Separate CI service accounts for prod, staging, dev, etc.
 
 ## Features
 
-- **Shared Infrastructure**: Uses a single Workload Identity Pool in khan-academy for all Terraform CI
-- **Dedicated Service Accounts**: Creates unique service accounts for each Terraform setup/environment
+- **Shared Infrastructure**: Uses a single Workload Identity Pool in khan-internal-services for all GitHub Terraform CI
+- **Dedicated Service Accounts**: Creates unique service accounts for each Terraform configuration managed in CI
 - **Workload Identity Federation**: Uses modern, keyless authentication for GitHub Actions
 - **Cross-Project Support**: Service accounts can deploy Terraform resources across multiple GCP projects
 - **Least Privilege**: Only grants permissions for specified GCP services in target projects
 - **Terraform State Management**: Automatic permissions for GCS-based Terraform state buckets
-- **Secret Management**: Optional access to Google Secret Manager secrets
-- **Configurable Services**: Enable only the GCP services your Terraform configuration needs
-- **Repository Scoped**: Restricts access to a specific GitHub repository
+- **Secret Management**: Optional access to Google Secret Manager secrets needed by Terraform
+- **Configurable Services**: Enable only the GCP services your Terraform configuration manages
+- **Repository Scoped**: Restricts access to a specific GitHub repository containing Terraform code
 
 ## Architecture
 
-All Terraform CI infrastructure is centralized in the `khan-academy` project:
-- **Single Pool**: `khan-academy-github-ci` pool shared by all Terraform setups
-- **Unique Providers**: Each Terraform setup gets its own provider within the shared pool  
+All GitHub Terraform CI infrastructure is centralized in the `khan-internal-services` project:
+- **Single Pool**: `khan-internal-services-github-ci` pool shared by all Terraform configurations managed in CI
+- **Unique Providers**: Each Terraform configuration gets its own provider within the shared pool  
 - **Cross-Project Permissions**: Service accounts get permissions in target projects for Terraform resource management
-- **State Bucket Access**: Service accounts get appropriate permissions for Terraform state storage
+- **State Bucket Access**: Service accounts get appropriate permissions for Terraform state storage in CI
 
 ## Usage
 
 ```hcl
-# Bootstrap CI for the culture-cron production Terraform configuration
+# Bootstrap GitHub Terraform CI for the culture-cron production configuration
 module "culture_cron_terraform_ci" {
   source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/github-ci-bootstrap?ref=v1.0.0"
 
-  # Terraform setup configuration
-  service_name      = "culture-cron-prod"        # Name of this Terraform setup
+  # Terraform configuration managed in CI
+  service_name      = "culture-cron-prod"        # Name of this Terraform configuration
   github_repository = "Khan/culture-cron"        # GitHub repo containing the Terraform code
   
-  # Target projects where this Terraform configuration will deploy resources
+  # Target projects where this Terraform configuration deploys resources via CI
   target_projects = {
     prod = {
       project_id        = "khan-academy"
@@ -120,7 +120,7 @@ This ensures each Terraform setup gets its own isolated state bucket while maint
 
 ## GitHub Actions Configuration
 
-After applying this module, configure your GitHub Actions workflow for Terraform operations:
+After applying this module, configure your GitHub Actions workflow to manage Terraform in CI:
 
 ```yaml
 permissions:
@@ -149,7 +149,7 @@ jobs:
 - **Repository Scoped**: Access restricted to specified GitHub repository
 - **Least Privilege**: Only grants permissions for enabled services in target projects
 - **Secret Scoping**: Fine-grained access to specific secrets only
-- **Centralized Management**: All CI infrastructure managed in khan-academy project
+- **Centralized Management**: All CI infrastructure managed in khan-internal-services project
 
 ## Examples
 

@@ -1,7 +1,7 @@
-# Input variables for the GitHub CI Bootstrap module
+# Input variables for the GitHub Terraform CI Bootstrap module
 
 variable "service_name" {
-  description = "Name of the Terraform setup/environment for CI operations (e.g., 'culture-cron-prod', 'webapp-staging')"
+  description = "Name of the Terraform configuration managed in CI (e.g., 'culture-cron-prod', 'webapp-staging')"
   type        = string
   validation {
     condition     = can(regex("^[a-z0-9-]+$", var.service_name))
@@ -19,7 +19,7 @@ variable "github_repository" {
 }
 
 variable "target_projects" {
-  description = "Map of GCP projects this service account needs access to"
+  description = "Map of GCP projects where this Terraform configuration will deploy resources"
   type = map(object({
     project_id        = string
     required_services = list(string)
@@ -53,7 +53,7 @@ variable "secrets_project_id" {
 }
 
 variable "secret_ids" {
-  description = "List of secret IDs that the service account needs access to"
+  description = "List of secret IDs that the Terraform configuration needs access to"
   type        = list(string)
   default     = []
 } 

@@ -1,4 +1,4 @@
-# Outputs from the GitHub CI Bootstrap module
+# Outputs from the GitHub Terraform CI Bootstrap module
 
 output "service_account_email" {
   description = "Email address of the created service account for GitHub Actions"
@@ -12,7 +12,7 @@ output "service_account_name" {
 
 output "workload_identity_provider" {
   description = "Full resource name of the Workload Identity provider for GitHub Actions"
-  value       = "projects/${data.google_project.khan_academy.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id}/providers/${google_iam_workload_identity_pool_provider.github_ci_provider.workload_identity_pool_provider_id}"
+  value       = "projects/${data.google_project.khan_internal_services.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id}/providers/${google_iam_workload_identity_pool_provider.github_ci_provider.workload_identity_pool_provider_id}"
 }
 
 output "workload_identity_pool_id" {

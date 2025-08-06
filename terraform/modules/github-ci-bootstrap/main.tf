@@ -1,5 +1,5 @@
-# GitHub Actions CI/CD Bootstrap Module
-# This module creates the necessary infrastructure for GitHub Actions to manage Terraform resources
+# GitHub Terraform CI Bootstrap Module
+# This module creates the necessary infrastructure for managing Terraform in GitHub Actions CI
 # It follows the principle of least privilege and uses Workload Identity Federation
 
 terraform {
@@ -44,11 +44,11 @@ locals {
   ])
 }
 
-# Service account for GitHub Actions (always created in khan-academy)
+# Service account for GitHub Actions (always created in khan-internal-services)
 resource "google_service_account" "github_ci" {
   account_id   = "${var.service_name}-ci"
   display_name = "GitHub CI for ${var.service_name}"
-  project      = "khan-academy"
+  project      = "khan-internal-services"
 }
 
 # === CROSS-PROJECT PERMISSIONS ===
@@ -140,18 +140,18 @@ resource "google_secret_manager_secret_iam_member" "ci_secret_access" {
 
 # === WORKLOAD IDENTITY FEDERATION FOR GITHUB CI ===
 
-# Get khan-academy project information to retrieve the numeric project ID
-data "google_project" "khan_academy" {
-  project_id = "khan-academy"
+# Get khan-internal-services project information to retrieve the numeric project ID
+data "google_project" "khan_internal_services" {
+  project_id = "khan-internal-services"
 }
 
 # Shared Workload Identity Pool for all GitHub CI
 # This will be created by the first module invocation and reused by subsequent ones
 resource "google_iam_workload_identity_pool" "github_ci_pool" {
   provider                  = google
-  project                   = data.google_project.khan_academy.number
-  workload_identity_pool_id = "khan-academy-github-ci"
-  display_name              = "Khan Academy GitHub CI Pool"
+  project                   = data.google_project.khan_internal_services.number
+  workload_identity_pool_id = "khan-internal-services-github-ci"
+  display_name              = "Khan Internal Services GitHub CI Pool"
 
   lifecycle {
     # Prevent deletion if other services are still using this pool
@@ -162,7 +162,7 @@ resource "google_iam_workload_identity_pool" "github_ci_pool" {
 # Workload Identity Provider for this specific service
 resource "google_iam_workload_identity_pool_provider" "github_ci_provider" {
   provider                           = google
-  project                            = data.google_project.khan_academy.number
+  project                            = data.google_project.khan_internal_services.number
   workload_identity_pool_id          = google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id
   workload_identity_pool_provider_id = "${var.service_name}-provider"
   display_name                       = "${var.service_name} GitHub Provider"
@@ -181,5 +181,5 @@ resource "google_iam_workload_identity_pool_provider" "github_ci_provider" {
 resource "google_service_account_iam_member" "github_ci_identity_binding" {
   service_account_id = google_service_account.github_ci.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.khan_academy.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id}/attribute.repository/${var.github_repository}"
+  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.khan_internal_services.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id}/attribute.repository/${var.github_repository}"
 }

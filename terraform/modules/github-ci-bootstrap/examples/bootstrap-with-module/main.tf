@@ -1,5 +1,5 @@
-# Example: Culture Cron Bootstrap using Remote Module
-# This demonstrates how to use the GitHub CI bootstrap module from the shared repository
+# Example: Culture Cron GitHub Terraform CI Bootstrap using Remote Module
+# This demonstrates how to use the GitHub Terraform CI bootstrap module from the shared repository
 
 terraform {
   required_providers {
@@ -23,7 +23,7 @@ provider "google" {
   region  = var.region
 }
 
-# Use the GitHub CI bootstrap module from the shared repository
+# Use the GitHub Terraform CI bootstrap module from the shared repository
 module "culture_cron_bootstrap" {
   source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/github-ci-bootstrap?ref=v1.0.0"
 
