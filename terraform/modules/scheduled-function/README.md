@@ -41,6 +41,17 @@ module "my_daily_task" {
 }
 ```
 
+## Examples
+
+Complete working examples are available in the [`examples/`](./examples/) directory:
+
+- **[`simple-function/`](./examples/simple-function/)** - Basic scheduled function with minimal configuration
+
+Each example includes:
+- Complete Terraform configuration
+- Sample function code with `requirements.txt`
+- Documentation on how to deploy and test
+
 ## Cross-Repository Usage
 
 ### Use Everywhere
@@ -58,7 +69,7 @@ module "test_function" {
 }
 ```
 
-## Examples
+## Usage Examples
 
 ### Multiple Functions
 ```hcl
