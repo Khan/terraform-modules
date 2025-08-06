@@ -1,16 +1,36 @@
-# Culture Cron Bootstrap Example
+# Culture Cron Terraform CI Bootstrap Example
 
-This example demonstrates how to use the GitHub CI Bootstrap module from the shared Terraform modules repository to set up CI/CD infrastructure for the Culture Cron project.
+This example demonstrates how to use the Terraform CI Bootstrap module from the shared Terraform modules repository to set up CI/CD infrastructure for running Terraform operations for the Culture Cron project.
 
 ## Overview
 
 This configuration uses the reusable `github-ci-bootstrap` module to create:
 
-- Service account for GitHub Actions
-- Workload Identity Federation for keyless authentication
-- IAM permissions for Cloud Functions, Storage, Pub/Sub, and Scheduler
-- Access to secrets in Google Secret Manager
-- Terraform state bucket permissions
+- Service account for running Terraform operations in GitHub Actions (in khan-academy project)
+- Workload Identity Federation using shared pool for keyless authentication
+- IAM permissions for deploying Cloud Functions, Storage, Pub/Sub, and Scheduler resources via Terraform
+- Access to secrets in Google Secret Manager that the Terraform configuration needs
+- Permissions for Terraform state bucket management
+
+## Architecture
+
+- **Service Account**: `culture-cron-prod-ci` created in `khan-academy` project for Terraform operations
+- **Shared Pool**: Uses `khan-academy-github-ci` pool (shared by all Terraform CI setups)
+- **Unique Provider**: `culture-cron-prod-provider` within the shared pool
+- **Target Project**: Terraform configuration deploys to `khan-internal-services` with permissions for specified services
+- **State Isolation**: Dedicated state bucket for this Terraform configuration
+
+## Purpose
+
+This creates the necessary infrastructure for GitHub Actions to run:
+- `terraform plan` - Review changes before applying
+- `terraform apply` - Deploy infrastructure changes
+- `terraform destroy` - (if needed) Clean up resources
+
+Each Terraform configuration gets its own service account to ensure:
+- **Isolation**: Separate permissions and state for prod/staging/dev
+- **Security**: Least privilege access to only required GCP services
+- **Traceability**: Clear audit trail of which CI account made which changes
 
 ## Usage
 
@@ -43,25 +63,27 @@ The original bootstrap configuration had ~150 lines of Terraform with explicit r
 This example reduces the configuration to ~25 lines by using the reusable module, making it:
 - **Easier to maintain** - Updates happen in one place
 - **Less error-prone** - Tested, reusable components
-- **More consistent** - Standardized CI/CD setup across projects
+- **More consistent** - Standardized Terraform CI setup across projects
 - **Better documented** - Module includes comprehensive documentation
+- **Shared Infrastructure** - Uses centralized Workload Identity Pool
 
 ## Configuration
 
-The module is configured with:
+The module is configured for the Culture Cron production Terraform setup with:
 
-- **Project**: `khan-internal-services` (Culture Cron infrastructure)
-- **Secrets**: `khan-academy` (Slack token storage)
-- **Repository**: `Khan/culture-cron` (GitHub repository)
-- **Services**: Cloud Functions, Storage, Pub/Sub, Scheduler
+- **Terraform Setup**: `culture-cron-prod` (production environment configuration)
+- **Repository**: `Khan/culture-cron` (GitHub repository containing Terraform code)
+- **Target Project**: `khan-internal-services` with Cloud Functions, Storage, Pub/Sub, Scheduler services
+- **State Bucket**: `terraform-khan-culture-cron-culture-cron-prod` (automatically computed from repository and service)
+- **Secrets**: `khan-academy` (Slack token storage for the Terraform configuration)
 
 ## Outputs
 
-After applying, you'll get the service account email and Workload Identity provider needed for GitHub Actions workflows.
+After applying, you'll get the service account email and Workload Identity provider needed for configuring GitHub Actions workflows to run Terraform operations.
 
 ## Migration
 
-To migrate from the existing bootstrap:
+To migrate from an existing bootstrap setup:
 
 1. **Backup current state:**
    ```bash
@@ -71,6 +93,6 @@ To migrate from the existing bootstrap:
 
 2. **Apply this example configuration**
 
-3. **Update GitHub Actions workflows** to use the new service account (if the name changed)
+3. **Update GitHub Actions workflows** to use the new service account for Terraform operations
 
-The resource naming in the module follows the same pattern, so most resources should match existing ones. 
+The new architecture uses shared infrastructure, so the first Terraform CI setup to be deployed will create the shared pool, and subsequent Terraform configurations will reuse it. 

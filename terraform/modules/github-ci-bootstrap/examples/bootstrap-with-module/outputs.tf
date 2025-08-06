@@ -10,12 +10,17 @@ output "workload_identity_provider" {
   value       = module.culture_cron_bootstrap.workload_identity_provider
 }
 
-output "project_id" {
-  description = "The project ID where resources were created"
-  value       = module.culture_cron_bootstrap.project_id
+output "service_name" {
+  description = "The Terraform setup name used for this CI configuration"
+  value       = module.culture_cron_bootstrap.service_name
 }
 
 output "github_repository" {
   description = "The GitHub repository configured for Workload Identity"
   value       = module.culture_cron_bootstrap.github_repository
+}
+
+output "target_projects" {
+  description = "Map of target projects configured for this service account"
+  value       = module.culture_cron_bootstrap.target_projects
 } 

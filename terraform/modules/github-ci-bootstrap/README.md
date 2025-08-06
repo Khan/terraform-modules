@@ -1,41 +1,61 @@
-# GitHub CI Bootstrap Module
+# Terraform CI Bootstrap Module
 
-This Terraform module creates the necessary infrastructure for GitHub Actions to manage GCP resources using Workload Identity Federation. It follows the principle of least privilege and only grants permissions needed for the specified services.
+This module creates the necessary infrastructure for running **Terraform operations** (`terraform plan` and `terraform apply`) in GitHub Actions CI/CD pipelines. It provisions service accounts with appropriate GCP permissions and uses Workload Identity Federation for keyless authentication.
+
+## Purpose
+
+Each module invocation creates a dedicated service account for a complete Terraform setup/configuration. This enables:
+
+- **Isolated Terraform Operations**: Each Terraform setup gets its own service account and state bucket
+- **Secure CI/CD**: Run `terraform plan` and `terraform apply` in GitHub Actions without storing keys
+- **Cross-Project Deployments**: Single service account can manage resources across multiple GCP projects  
+- **Environment Separation**: Separate service accounts for prod, staging, dev, etc.
 
 ## Features
 
-- **Service Account Creation**: Creates a dedicated service account for GitHub Actions
-- **Workload Identity Federation**: Uses modern, keyless authentication
-- **Least Privilege**: Only grants permissions for specified GCP services  
+- **Shared Infrastructure**: Uses a single Workload Identity Pool in khan-academy for all Terraform CI
+- **Dedicated Service Accounts**: Creates unique service accounts for each Terraform setup/environment
+- **Workload Identity Federation**: Uses modern, keyless authentication for GitHub Actions
+- **Cross-Project Support**: Service accounts can deploy Terraform resources across multiple GCP projects
+- **Least Privilege**: Only grants permissions for specified GCP services in target projects
+- **Terraform State Management**: Automatic permissions for GCS-based Terraform state buckets
 - **Secret Management**: Optional access to Google Secret Manager secrets
-- **Configurable Services**: Enable only the GCP services you need
+- **Configurable Services**: Enable only the GCP services your Terraform configuration needs
 - **Repository Scoped**: Restricts access to a specific GitHub repository
+
+## Architecture
+
+All Terraform CI infrastructure is centralized in the `khan-academy` project:
+- **Single Pool**: `khan-academy-github-ci` pool shared by all Terraform setups
+- **Unique Providers**: Each Terraform setup gets its own provider within the shared pool  
+- **Cross-Project Permissions**: Service accounts get permissions in target projects for Terraform resource management
+- **State Bucket Access**: Service accounts get appropriate permissions for Terraform state storage
 
 ## Usage
 
 ```hcl
-module "github_ci_bootstrap" {
-  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/github-ci-bootstrap?ref=main"
+# Bootstrap CI for the culture-cron production Terraform configuration
+module "culture_cron_terraform_ci" {
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/github-ci-bootstrap?ref=v1.0.0"
 
-  # Project configuration
-  project_id           = "my-gcp-project"
-  project_name         = "my-project"
-  project_display_name = "My Project"
+  # Terraform setup configuration
+  service_name      = "culture-cron-prod"        # Name of this Terraform setup
+  github_repository = "Khan/culture-cron"        # GitHub repo containing the Terraform code
   
-  # GitHub configuration
-  github_repository = "myorg/my-repo"
+  # Target projects where this Terraform configuration will deploy resources
+  target_projects = {
+    prod = {
+      project_id        = "khan-academy"
+      required_services = ["cloudfunctions", "storage", "pubsub", "scheduler"]
+    }
+  }
   
-  # Terraform state
-  terraform_state_bucket = "my-terraform-state-bucket"
+  # Terraform state bucket (optional - defaults to terraform-khan-culture-cron-culture-cron-prod)
+  # terraform_state_bucket = "custom-bucket-name"
   
-  # Services (optional - defaults to all)
-  required_services = ["cloudfunctions", "storage", "pubsub", "scheduler"]
-  
-  # Secrets (optional)
-  secrets_project_id = "my-secrets-project"
+  # Secrets that the Terraform configuration needs access to (optional)
   secret_ids = [
-    "projects/my-secrets-project/secrets/my-secret",
-    "projects/my-secrets-project/secrets/another-secret"
+    "projects/khan-academy/secrets/slack-token"
   ]
 }
 ```
@@ -44,21 +64,49 @@ module "github_ci_bootstrap" {
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| `project_id` | The Google Cloud project ID where CI resources will be created | `string` | n/a | yes |
-| `project_name` | Short name for the project (used in resource names) | `string` | n/a | yes |
-| `project_display_name` | Human-readable display name for the project | `string` | n/a | yes |
-| `github_repository` | GitHub repository in format 'org/repo' | `string` | n/a | yes |
-| `terraform_state_bucket` | GCS bucket name for storing Terraform state | `string` | n/a | yes |
-| `required_services` | List of GCP services needing access | `list(string)` | `["cloudfunctions", "storage", "pubsub", "scheduler"]` | no |
-| `secrets_project_id` | Project ID where secrets are stored | `string` | `null` | no |
-| `secret_ids` | List of secret IDs for access | `list(string)` | `[]` | no |
+| `service_name` | Name of the Terraform setup/environment for CI operations (e.g., 'culture-cron-prod', 'webapp-staging') | `string` | n/a | yes |
+| `github_repository` | GitHub repository containing the Terraform configuration in format 'org/repo' | `string` | n/a | yes |
+| `target_projects` | Map of GCP projects where this Terraform configuration will deploy resources | `map(object)` | `{}` | no |
+| `terraform_state_bucket` | GCS bucket name for storing Terraform state for this configuration | `string` | `terraform-{org}-{repo}-{service}` | no |
+| `secrets_project_id` | Project ID where secrets needed by the Terraform configuration are stored | `string` | `"khan-academy"` | no |
+| `secret_ids` | List of secret IDs that the Terraform configuration needs access to | `list(string)` | `[]` | no |
+
+### Target Projects Structure
+
+The `target_projects` variable accepts a map where each key is a logical name and the value contains:
+
+```hcl
+target_projects = {
+  prod = {
+    project_id        = "khan-academy"           # GCP project ID
+    required_services = ["storage", "pubsub"]    # Services needed in this project
+  }
+  staging = {
+    project_id        = "khan-academy-staging"
+    required_services = ["cloudfunctions"]
+  }
+}
+```
 
 ### Available Services
 
-- `cloudfunctions` - Enables Cloud Functions deployment and management
-- `storage` - Enables Cloud Storage bucket management  
-- `pubsub` - Enables Pub/Sub topic and subscription management
-- `scheduler` - Enables Cloud Scheduler job management
+These services correspond to GCP resources that your Terraform configuration can deploy and manage:
+
+- `cloudfunctions` - Enables deploying and managing Cloud Functions via Terraform
+- `storage` - Enables creating and managing Cloud Storage buckets via Terraform  
+- `pubsub` - Enables creating and managing Pub/Sub topics and subscriptions via Terraform
+- `scheduler` - Enables creating and managing Cloud Scheduler jobs via Terraform
+
+### Terraform State Bucket Default
+
+If `terraform_state_bucket` is not specified, the module automatically generates a bucket name based on your GitHub repository and service name:
+
+- **Pattern**: `terraform-{org}-{repo}-{service}` (normalized to lowercase)
+- **Example**: `Khan/culture-cron` + `culture-cron-prod` → `terraform-khan-culture-cron-culture-cron-prod`
+- **Example**: `Khan/webapp` + `webapp-staging` → `terraform-khan-webapp-webapp-staging`
+- **Example**: `Khan/Mobile-App` + `mobile-app-prod` → `terraform-khan-mobile-app-mobile-app-prod`
+
+This ensures each Terraform setup gets its own isolated state bucket while maintaining consistent, predictable naming.
 
 ## Outputs
 
@@ -66,11 +114,13 @@ module "github_ci_bootstrap" {
 |------|-------------|
 | `service_account_email` | Email of the created service account |
 | `workload_identity_provider` | Full resource name of the Workload Identity provider |
-| `project_id` | The project ID where resources were created |
+| `terraform_state_bucket` | The GCS bucket name used for Terraform state (computed or provided) |
+| `service_name` | The Terraform setup name used for this configuration |
+| `target_projects` | Map of target projects configured |
 
 ## GitHub Actions Configuration
 
-After applying this module, configure your GitHub Actions workflow:
+After applying this module, configure your GitHub Actions workflow for Terraform operations:
 
 ```yaml
 permissions:
@@ -97,53 +147,102 @@ jobs:
 
 - **No Service Account Keys**: Uses Workload Identity Federation for keyless auth
 - **Repository Scoped**: Access restricted to specified GitHub repository
-- **Least Privilege**: Only grants permissions for enabled services
+- **Least Privilege**: Only grants permissions for enabled services in target projects
 - **Secret Scoping**: Fine-grained access to specific secrets only
+- **Centralized Management**: All CI infrastructure managed in khan-academy project
 
 ## Examples
 
-### Minimal Configuration
+### Single Project Terraform Configuration (Using Default State Bucket)
 ```hcl
-module "ci_bootstrap" {
+# CI for culture-cron production Terraform configuration
+module "culture_cron_prod_ci" {
   source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/github-ci-bootstrap?ref=v1.0.0"
 
-  project_id             = "my-project"
-  project_name           = "my-app"
-  project_display_name   = "My Application"
-  github_repository      = "myorg/my-app"
-  terraform_state_bucket = "my-terraform-state"
+  service_name      = "culture-cron-prod"
+  github_repository = "Khan/culture-cron"
+  
+  # This Terraform config deploys resources to khan-academy project
+  target_projects = {
+    prod = {
+      project_id        = "khan-academy"
+      required_services = ["cloudfunctions", "storage", "pubsub", "scheduler"]
+    }
+  }
+  
+  # Terraform state bucket defaults to: terraform-khan-culture-cron-culture-cron-prod
 }
 ```
 
-### With Secrets Access
+### Multi-Project Terraform Configuration
 ```hcl
-module "ci_bootstrap" {
+# CI for webapp staging Terraform configuration that deploys across multiple projects
+module "webapp_staging_ci" {
   source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/github-ci-bootstrap?ref=v1.0.0"
 
-  project_id             = "my-project"
-  project_name           = "my-app"
-  project_display_name   = "My Application"
-  github_repository      = "myorg/my-app"
-  terraform_state_bucket = "my-terraform-state"
+  service_name      = "webapp-staging"
+  github_repository = "Khan/webapp"
   
-  secrets_project_id = "my-secrets-project"
+  # This Terraform config deploys resources to multiple projects
+  target_projects = {
+    staging = {
+      project_id        = "khan-academy-staging"
+      required_services = ["storage", "pubsub"]
+    }
+    shared = {
+      project_id        = "khan-shared-services"
+      required_services = ["storage"]
+    }
+  }
+  
+  # Terraform state bucket defaults to: terraform-khan-webapp-webapp-staging
+}
+```
+
+### Terraform Configuration with Secrets Access (Custom State Bucket)
+```hcl
+# CI for API production Terraform configuration that needs access to secrets
+module "api_prod_ci" {
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/github-ci-bootstrap?ref=v1.0.0"
+
+  service_name      = "api-prod"
+  github_repository = "Khan/api"
+  
+  target_projects = {
+    prod = {
+      project_id        = "khan-academy"
+      required_services = ["cloudfunctions", "storage"]
+    }
+  }
+  
+  # Use custom state bucket instead of default (terraform-khan-api-api-prod)
+  terraform_state_bucket = "shared-terraform-state"
+  
+  # Secrets that the Terraform configuration needs access to
   secret_ids = [
-    "projects/my-secrets-project/secrets/api-token"
+    "projects/khan-academy/secrets/api-key",
+    "projects/khan-academy/secrets/database-url"
   ]
 }
 ```
 
-### Storage-Only Access
+### Terraform Configuration with Storage-Only Access
 ```hcl
-module "ci_bootstrap" {
+# CI for static site Terraform configuration that only manages storage buckets
+module "static_site_prod_ci" {
   source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/github-ci-bootstrap?ref=v1.0.0"
 
-  project_id             = "my-project"
-  project_name           = "static-site"
-  project_display_name   = "Static Site"
-  github_repository      = "myorg/static-site"
-  terraform_state_bucket = "my-terraform-state"
+  service_name      = "static-site-prod"
+  github_repository = "Khan/static-site"
   
-  required_services = ["storage"]
+  # This Terraform config only creates storage buckets
+  target_projects = {
+    prod = {
+      project_id        = "khan-academy"
+      required_services = ["storage"]
+    }
+  }
+  
+  # Terraform state bucket defaults to: terraform-khan-static-site-static-site-prod
 }
-``` 
+```

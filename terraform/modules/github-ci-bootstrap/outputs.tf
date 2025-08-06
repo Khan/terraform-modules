@@ -12,25 +12,35 @@ output "service_account_name" {
 
 output "workload_identity_provider" {
   description = "Full resource name of the Workload Identity provider for GitHub Actions"
-  value       = "projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id}/providers/${google_iam_workload_identity_pool_provider.github_ci_provider.workload_identity_pool_provider_id}"
+  value       = "projects/${data.google_project.khan_academy.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id}/providers/${google_iam_workload_identity_pool_provider.github_ci_provider.workload_identity_pool_provider_id}"
 }
 
 output "workload_identity_pool_id" {
-  description = "ID of the Workload Identity pool"
+  description = "ID of the shared Workload Identity pool"
   value       = google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id
 }
 
 output "workload_identity_provider_id" {
-  description = "ID of the Workload Identity provider"
+  description = "ID of the Workload Identity provider for this service"
   value       = google_iam_workload_identity_pool_provider.github_ci_provider.workload_identity_pool_provider_id
 }
 
-output "project_id" {
-  description = "The project ID where resources were created"
-  value       = var.google_project_name
+output "terraform_state_bucket" {
+  description = "The GCS bucket name used for Terraform state (computed or provided)"
+  value       = local.terraform_state_bucket
+}
+
+output "service_name" {
+  description = "The Terraform setup name used for this CI configuration"
+  value       = var.service_name
 }
 
 output "github_repository" {
   description = "The GitHub repository configured for Workload Identity"
   value       = var.github_repository
+}
+
+output "target_projects" {
+  description = "Map of target projects configured for this service account"
+  value       = var.target_projects
 } 

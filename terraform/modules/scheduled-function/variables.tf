@@ -128,9 +128,3 @@ variable "build_environment_variables" {
   default     = {}
 }
 
-# Dependencies
-variable "requirements_file" {
-  description = "Path to requirements.txt file (relative to source_dir)"
-  type        = string
-  default     = "requirements.txt"
-}

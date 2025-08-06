@@ -12,7 +12,7 @@ terraform {
 
   # Store Terraform state in GCS
   backend "gcs" {
-    bucket = "terraform-khan-academy"
+    bucket = "terraform-khan-culture-cron-culture-cron-prod" # This will match the computed default
     prefix = "culture-cron-bootstrap-example"
   }
 }
@@ -25,24 +25,24 @@ provider "google" {
 
 # Use the GitHub CI bootstrap module from the shared repository
 module "culture_cron_bootstrap" {
-  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/github-ci-bootstrap?ref=main"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/github-ci-bootstrap?ref=v1.0.0"
 
-  # Project configuration
-  google_project_name  = var.project_id
-  project_name         = "culture-cron"
-  project_display_name = "Culture Cron"
-
-  # GitHub configuration
+  # Service configuration
+  service_name      = "culture-cron-prod"
   github_repository = "Khan/culture-cron"
 
-  # Terraform state
-  terraform_state_bucket = "terraform-khan-academy"
+  # Target projects - culture-cron deploys to khan-internal-services
+  target_projects = {
+    prod = {
+      project_id        = var.project_id
+      required_services = ["cloudfunctions", "storage", "pubsub", "scheduler"]
+    }
+  }
 
-  # Services needed for culture-cron
-  required_services = ["cloudfunctions", "storage", "pubsub", "scheduler"]
+  # Terraform state bucket will default to: terraform-khan-culture-cron-culture-cron-prod
+  # terraform_state_bucket = "custom-bucket-name"  # Uncomment to override default
 
-  # Secrets configuration
-  secrets_project_id = var.secrets_project_id
+  # Secrets configuration - uses khan-academy project by default
   secret_ids = [
     "projects/${var.secrets_project_id}/secrets/districts_slack_token"
   ]
