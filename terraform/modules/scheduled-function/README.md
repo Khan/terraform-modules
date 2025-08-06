@@ -22,7 +22,7 @@ module "my_daily_task" {
 
   function_name      = "my-daily-task"
   project_id         = "my-gcp-project"
-  secrets_project_id = "my-secrets-project"
+  secrets_project_id = "my-secrets-gcp-project"
   source_dir         = "./functions/my-task"
   main_file          = "main.py"
   schedule           = "0 9 * * 1-5"  # 9 AM weekdays
