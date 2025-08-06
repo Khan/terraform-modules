@@ -50,7 +50,7 @@ module "culture_cron_terraform_ci" {
     }
   }
   
-  # Terraform state bucket (optional - defaults to terraform-khan-culture-cron-culture-cron-prod)
+  # Terraform state bucket (optional - defaults to terraform-khan-<github_repository>-<service_name>)
   # terraform_state_bucket = "custom-bucket-name"
   
   # Secrets that the Terraform configuration needs access to (optional)
