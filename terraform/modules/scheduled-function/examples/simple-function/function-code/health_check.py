@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 @functions_framework.cloud_event
 def main(cloud_event):
-    """
-    Main function entry point for the scheduled health check.
+    """Main function entry point for the scheduled health check.
     
     Args:
         cloud_event: Cloud Functions event object
