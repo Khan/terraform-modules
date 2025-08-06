@@ -166,7 +166,7 @@ module "my_function" {
 - `project_id` - GCP project for resources
 - `secrets_project_id` - GCP project containing secrets
 - `source_dir` - Path to function code
-- `main_file` - Python file name (e.g., "main.py")
+- `main_file` - Python file name (e.g., "main.py"), relative to `source_dir`.
 - `schedule` - Cron expression (e.g., "0 9 * * 1-5")
 - `description` - Function description
 
