@@ -1,6 +1,6 @@
 # terraform-scheduled-function-module
 
-A reusable Terraform module for scheduled Google Cloud Functions. Reduces 145 lines of infrastructure code to just 10-25 lines.
+A reusable Terraform module for scheduled Google Cloud Functions.
 
 ## Features
 
@@ -11,7 +11,6 @@ Creates a complete scheduled function setup:
 - Service account with least-privilege permissions
 - Storage bucket with lifecycle management
 - Secret Manager IAM bindings
-
 - Source code change detection
 
 ## Quick Start
@@ -43,11 +42,6 @@ module "my_daily_task" {
 ```
 
 ## Cross-Repository Usage
-
-### Setup Once
-1. Create this module as a separate repository
-2. Tag releases (e.g., `v1.0.0`)
-3. Reference from any repository using Git source
 
 ### Use Everywhere
 ```hcl
@@ -124,39 +118,6 @@ module "data_processor" {
 }
 ```
 
-## Migration from Manual Resources
-
-### Before (145 lines)
-```hcl
-resource "google_service_account" "function_sa" { ... }
-resource "google_storage_bucket" "function_bucket" { ... }
-
-data "archive_file" "function_archive" { ... }
-resource "google_storage_bucket_object" "function_archive" { ... }
-resource "google_pubsub_topic" "function_topic" { ... }
-resource "google_cloud_scheduler_job" "function_scheduler" { ... }
-resource "google_cloudfunctions2_function" "function" { ... }
-# + IAM bindings, etc.
-```
-
-### After (20 lines)
-```hcl
-module "my_function" {
-  source = "git::https://github.com/YourOrg/terraform-scheduled-function-module.git?ref=v1.0.0"
-  
-  function_name = "my-function"
-  project_id    = var.project_id
-  source_dir    = "./functions/my-function"
-  main_file     = "main.py"
-  schedule      = "0 9 * * 1-5"
-  description   = "My function"
-  
-  secrets = [{ env_var_name = "TOKEN", secret_id = "my-token", version = "latest" }]
-}
-```
-
-**Result: 83% less code, same functionality**
-
 ## Requirements & Inputs
 
 ### Required
@@ -201,6 +162,18 @@ your-app-repo/
 
 ## Function Code Structure
 
+### Required Files
+
+Your source directory must contain:
+
+```
+functions/my-task/
+├── main.py              # Entry point function
+└── requirements.txt     # Python dependencies (if needed)
+```
+
+### Python Function Code
+
 ```python
 # functions/my-task/main.py
 import functions_framework
@@ -212,21 +185,9 @@ def main(cloud_event):
     return "Success"
 ```
 
-## Versioning & Deployment
+### Dependencies
 
-```bash
-# 1. Create module repository
-git clone <module-repo> terraform-scheduled-function-module
-cd terraform-scheduled-function-module
-git tag v1.0.0
-git push origin v1.0.0
-
-# 2. Use in any repository
-cd your-app-repo/terraform
-terraform init
-terraform plan
-terraform apply
-```
+If your function uses external packages, include a `requirements.txt` file. Cloud Functions automatically install dependencies from `requirements.txt` during deployment. No local installation is needed - the module simply packages your source code and lets Cloud Functions handle dependency management.
 
 ## Common Cron Patterns
 
