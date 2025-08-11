@@ -97,6 +97,12 @@ variable "min_instance_count" {
   default     = 1
 }
 
+variable "retries_enabled" {
+  description = "Whether the retry policy is set to `RETRY_POLICY_RETRY`"
+  type        = bool
+  default     = false
+}
+
 # Environment variables
 variable "environment_variables" {
   description = "Environment variables for the Cloud Function"

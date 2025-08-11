@@ -31,6 +31,7 @@ resource "google_storage_bucket" "function_bucket" {
   name                        = "${var.function_name}-source-${var.project_id}"
   location                    = var.region
   uniform_bucket_level_access = true
+  force_destroy               = true
 
   # Enable versioned objects
   versioning {
@@ -52,7 +53,7 @@ resource "google_storage_bucket" "function_bucket" {
 data "archive_file" "function_archive" {
   type        = "zip"
   output_path = "${path.module}/${var.function_name}-function.zip"
-  source_dir  = var.source_dir
+  source_dir  = abspath(var.source_dir)
   excludes    = var.excludes
 }
 
@@ -146,6 +147,6 @@ resource "google_cloudfunctions2_function" "function" {
     trigger_region = var.region
     event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
     pubsub_topic   = google_pubsub_topic.function_topic.id
-    retry_policy   = "RETRY_POLICY_RETRY"
+    retry_policy   = var.retries_enabled ? "RETRY_POLICY_RETRY" : "RETRY_POLICY_DO_NOT_RETRY"
   }
 } 
