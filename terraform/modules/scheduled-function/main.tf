@@ -17,18 +17,6 @@ terraform {
   }
 }
 
-# Validation for required variables based on execution type
-locals {
-  # Validate that source_dir and main_file are provided for Cloud Functions
-  validate_function_vars = var.execution_type == "function" ? (
-    var.source_dir == null ? tobool("source_dir is required when execution_type is 'function'") : true
-  ) : true
-  
-  validate_main_file = var.execution_type == "function" ? (
-    var.main_file == null ? tobool("main_file is required when execution_type is 'function'") : true
-  ) : true
-}
-
 # Service account for the Cloud Function/Job
 resource "google_service_account" "function_sa" {
   project      = var.project_id
@@ -40,7 +28,7 @@ resource "google_service_account" "function_sa" {
 # Storage bucket for function source code (only for Cloud Functions)
 resource "google_storage_bucket" "function_bucket" {
   count = var.execution_type == "function" ? 1 : 0
-  
+
   project                     = var.project_id
   name                        = "${var.function_name}-source-${var.project_id}"
   location                    = var.region
@@ -51,10 +39,10 @@ resource "google_storage_bucket" "function_bucket" {
 # Create function source archive (only for Cloud Functions)
 data "archive_file" "function_archive" {
   count = var.execution_type == "function" ? 1 : 0
-  
+
   type        = "zip"
   output_path = "${path.module}/${var.function_name}-function.zip"
-  source_dir  = var.source_dir
+  source_dir  = abspath(var.source_dir)
   excludes    = var.excludes
 }
 
@@ -65,7 +53,7 @@ data "archive_file" "function_archive" {
 # 3. No manual cleanup or lifecycle rules needed - Terraform handles it
 resource "google_storage_bucket_object" "function_archive" {
   count = var.execution_type == "function" ? 1 : 0
-  
+
   name   = "${var.function_name}-function-${data.archive_file.function_archive[0].output_sha}.zip"
   bucket = google_storage_bucket.function_bucket[0].name
   source = data.archive_file.function_archive[0].output_path
@@ -173,13 +161,13 @@ resource "google_cloud_run_v2_job" "job" {
   location = var.region
 
   template {
-    task_count = var.job_task_count
+    task_count  = var.job_task_count
     parallelism = var.job_parallelism
 
     template {
       containers {
         image = var.job_image
-        
+
         command = var.job_command
         args    = var.job_args
 
@@ -222,10 +210,6 @@ resource "google_cloud_run_v2_job" "job" {
 
 
 
-# Get project number for PubSub service account
-data "google_project" "project" {
-  project_id = var.project_id
-}
 
 # Cloud Scheduler job for Cloud Run Job (only created when execution_type is "job")
 resource "google_cloud_scheduler_job" "job_scheduler" {
@@ -239,8 +223,8 @@ resource "google_cloud_scheduler_job" "job_scheduler" {
 
   http_target {
     http_method = "POST"
-    uri         = "https://${var.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${var.function_name}:run"
-    
+    uri         = "https://run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${var.function_name}:run"
+
     headers = {
       "Content-Type" = "application/json"
     }

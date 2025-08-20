@@ -25,7 +25,7 @@ provider "google" {
 # Simple daily function example
 module "daily_health_check" {
   # When used from another repository, this would be:
-  # source = "git::https://github.com/Khan/terraform-scheduled-function-module.git?ref=v1.0.0"
+  # source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
   source = "../.."
 
   function_name      = "daily-health-check"

@@ -18,7 +18,7 @@ Creates a complete scheduled setup:
 ### Cloud Function Example
 ```hcl
 module "my_daily_task" {
-  source = "git::https://github.com/Khan/terraform-scheduled-function-module.git?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
 
   function_name      = "my-daily-task"
   execution_type     = "function"  # Default, can be omitted
@@ -46,7 +46,7 @@ module "my_daily_task" {
 ### Cloud Run Job Example
 ```hcl
 module "my_data_processor" {
-  source = "git::https://github.com/Khan/terraform-scheduled-function-module.git?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
 
   function_name      = "my-data-processor"
   execution_type     = "job"
@@ -117,19 +117,25 @@ Each example includes:
 | **Container** | Runtime-based | Custom container images |
 | **Parallelism** | Multiple instances | Configurable parallelism |
 
+### Cost Considerations
+
+**Pricing is extremely similar** between Cloud Functions (2nd gen) and Cloud Run Jobs since both are billed as Cloud Run services. See the [official Cloud Run pricing page](https://cloud.google.com/run/pricing) for current rates.
+
+*Note: Both execution types use the same pricing model, so cost should not be the primary factor in your decision.*
+
 ## Cross-Repository Usage
 
 ### Use Everywhere
 ```hcl
 # Production: Pin to specific version
 module "backup" {
-  source = "git::https://github.com/YourOrg/terraform-scheduled-function-module.git?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
   # ... config
 }
 
 # Development: Use latest
 module "test_function" {
-  source = "git::https://github.com/YourOrg/terraform-scheduled-function-module.git"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function"
   # ... config
 }
 ```
@@ -139,7 +145,7 @@ module "test_function" {
 ### Multiple Functions
 ```hcl
 module "daily_backup" {
-  source = "git::https://github.com/YourOrg/terraform-scheduled-function-module.git?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
   
   function_name = "daily-backup"
   schedule      = "0 2 * * *"  # 2 AM daily
@@ -149,7 +155,7 @@ module "daily_backup" {
 }
 
 module "weekly_reports" {
-  source = "git::https://github.com/YourOrg/terraform-scheduled-function-module.git?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
   
   function_name = "weekly-reports"
   schedule      = "0 9 * * 1"  # Monday 9 AM
@@ -163,7 +169,7 @@ module "weekly_reports" {
 ### Advanced Configuration
 ```hcl
 module "data_processor" {
-  source = "git::https://github.com/YourOrg/terraform-scheduled-function-module.git?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
   
   function_name      = "data-processor"
   project_id         = var.project_id

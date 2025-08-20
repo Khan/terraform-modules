@@ -25,7 +25,7 @@ provider "google" {
 # Simple daily job example
 module "daily_data_processor" {
   # When used from another repository, this would be:
-  # source = "git::https://github.com/Khan/terraform-scheduled-function-module.git?ref=v1.0.0"
+  # source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
   source = "../.."
 
   function_name      = "daily-data-processor"
@@ -38,10 +38,10 @@ module "daily_data_processor" {
   description        = "Daily data processing job"
 
   # Job-specific configuration
-  job_cpu    = "2000m"
-  job_memory = "2Gi"
+  job_cpu     = "2000m"
+  job_memory  = "2Gi"
   job_timeout = "7200s" # 2 hours
-  
+
   # Container image (build and push separately)
   job_image = "gcr.io/${var.project_id}/daily-data-processor:latest"
 
