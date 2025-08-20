@@ -1,4 +1,4 @@
-# terraform-scheduled-function-module
+# terraform-scheduled-job-module
 
 A reusable Terraform module for scheduled Google Cloud Functions and Cloud Run Jobs.
 
@@ -18,9 +18,9 @@ Creates a complete scheduled setup:
 ### Cloud Function Example
 ```hcl
 module "my_daily_task" {
-  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
 
-  function_name      = "my-daily-task"
+  job_name      = "my-daily-task"
   execution_type     = "function"  # Default, can be omitted
   project_id         = "my-gcp-project"
   secrets_project_id = "my-secrets-gcp-project"
@@ -46,9 +46,9 @@ module "my_daily_task" {
 ### Cloud Run Job Example
 ```hcl
 module "my_data_processor" {
-  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
 
-  function_name      = "my-data-processor"
+  job_name      = "my-data-processor"
   execution_type     = "job"
   project_id         = "my-gcp-project"
   secrets_project_id = "my-secrets-gcp-project"
@@ -129,13 +129,13 @@ Each example includes:
 ```hcl
 # Production: Pin to specific version
 module "backup" {
-  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
   # ... config
 }
 
 # Development: Use latest
 module "test_function" {
-  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job"
   # ... config
 }
 ```
@@ -145,9 +145,9 @@ module "test_function" {
 ### Multiple Functions
 ```hcl
 module "daily_backup" {
-  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
   
-  function_name = "daily-backup"
+  job_name = "daily-backup"
   schedule      = "0 2 * * *"  # 2 AM daily
   source_dir    = "./functions/backup"
   main_file     = "backup.py"
@@ -155,9 +155,9 @@ module "daily_backup" {
 }
 
 module "weekly_reports" {
-  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
   
-  function_name = "weekly-reports"
+  job_name = "weekly-reports"
   schedule      = "0 9 * * 1"  # Monday 9 AM
   source_dir    = "./functions/reports"
   main_file     = "reports.py"
@@ -169,9 +169,9 @@ module "weekly_reports" {
 ### Advanced Configuration
 ```hcl
 module "data_processor" {
-  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
   
-  function_name      = "data-processor"
+  job_name      = "data-processor"
   project_id         = var.project_id
   secrets_project_id = var.secrets_project_id
   source_dir         = "./functions/processor"
@@ -203,7 +203,7 @@ module "data_processor" {
 ## Requirements & Inputs
 
 ### Required
-- `function_name` - Unique name for your function/job
+- `job_name` - Unique name for your function or job
 - `project_id` - GCP project for resources
 - `secrets_project_id` - GCP project containing secrets
 - `source_dir` - Path to function/job code
@@ -232,8 +232,7 @@ module "data_processor" {
 
 ## Outputs
 
-- `function_name` - Name of deployed function (when `execution_type = "function"`)
-- `job_name` - Name of deployed job (when `execution_type = "job"`)
+- `resource_name` - Name of deployed function or job
 - `function_url` - Function URL (when `execution_type = "function"`)
 - `service_account_email` - Service account email
 - `scheduler_job_name` - Scheduler job name

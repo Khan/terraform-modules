@@ -25,10 +25,10 @@ provider "google" {
 # Simple daily job example
 module "daily_data_processor" {
   # When used from another repository, this would be:
-  # source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
+  # source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
   source = "../.."
 
-  function_name      = "daily-data-processor"
+  job_name      = "daily-data-processor"
   execution_type     = "job"
   project_id         = var.project_id
   secrets_project_id = var.secrets_project_id
