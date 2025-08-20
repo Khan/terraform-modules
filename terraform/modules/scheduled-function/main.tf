@@ -155,51 +155,49 @@ resource "google_cloud_run_v2_job" "job" {
   location = var.region
 
   template {
+    task_count = var.job_task_count
+    parallelism = var.job_parallelism
+    timeout     = var.job_timeout
+
     template {
-      task_count = var.job_task_count
-      parallelism = var.job_parallelism
-      timeout     = var.job_timeout
+      containers {
+        image = var.job_image
+        
+        command = var.job_command
+        args    = var.job_args
 
-      template {
-        containers {
-          image = var.job_image
-          
-          command = var.job_command
-          args    = var.job_args
-
-          resources {
-            limits = {
-              cpu    = var.job_cpu
-              memory = var.job_memory
-            }
+        resources {
+          limits = {
+            cpu    = var.job_cpu
+            memory = var.job_memory
           }
+        }
 
-          # Environment variables
-          dynamic "env" {
-            for_each = var.environment_variables
-            content {
-              name  = env.key
-              value = env.value
-            }
+        # Environment variables
+        dynamic "env" {
+          for_each = var.environment_variables
+          content {
+            name  = env.key
+            value = env.value
           }
+        }
 
-          # Secret environment variables
-          dynamic "env" {
-            for_each = var.secrets
-            content {
-              name = env.value.env_var_name
-              value_source {
-                secret_key_ref {
-                  secret  = env.value.secret_id
-                  version = env.value.version
-                }
+        # Secret environment variables
+        dynamic "env" {
+          for_each = var.secrets
+          content {
+            name = env.value.env_var_name
+            value_source {
+              secret_key_ref {
+                secret  = env.value.secret_id
+                version = env.value.version
               }
             }
           }
         }
-
-        service_account = google_service_account.function_sa.email
       }
+
+      service_account = google_service_account.function_sa.email
     }
   }
 }
