@@ -25,8 +25,10 @@ resource "google_service_account" "function_sa" {
   description  = "Service account used by the ${var.function_name} scheduled ${var.execution_type}"
 }
 
-# Storage bucket for function/job source code
+# Storage bucket for function source code (only for Cloud Functions)
 resource "google_storage_bucket" "function_bucket" {
+  count = var.execution_type == "function" ? 1 : 0
+  
   project                     = var.project_id
   name                        = "${var.function_name}-source-${var.project_id}"
   location                    = var.region
@@ -34,23 +36,27 @@ resource "google_storage_bucket" "function_bucket" {
   force_destroy               = true
 }
 
-# Create function/job source archive
+# Create function source archive (only for Cloud Functions)
 data "archive_file" "function_archive" {
+  count = var.execution_type == "function" ? 1 : 0
+  
   type        = "zip"
-  output_path = "${path.module}/${var.function_name}-${var.execution_type}.zip"
+  output_path = "${path.module}/${var.function_name}-function.zip"
   source_dir  = var.source_dir
   excludes    = var.excludes
 }
 
-# Upload function/job archive to storage bucket
+# Upload function archive to storage bucket (only for Cloud Functions)
 # The object name includes the source code hash, ensuring:
 # 1. Cloud Function redeploys when source code changes (new hash = new object name)
 # 2. Terraform automatically deletes old zip files when hash changes (resource replacement)
 # 3. No manual cleanup or lifecycle rules needed - Terraform handles it
 resource "google_storage_bucket_object" "function_archive" {
-  name   = "${var.function_name}-${var.execution_type}-${data.archive_file.function_archive.output_sha}.zip"
+  count = var.execution_type == "function" ? 1 : 0
+  
+  name   = "${var.function_name}-function-${data.archive_file.function_archive[0].output_sha}.zip"
   bucket = google_storage_bucket.function_bucket.name
-  source = data.archive_file.function_archive.output_path
+  source = data.archive_file.function_archive[0].output_path
 }
 
 # PubSub topic for triggering the Cloud Function (only created when execution_type is "function")
@@ -104,8 +110,8 @@ resource "google_cloudfunctions2_function" "function" {
 
     source {
       storage_source {
-        bucket = google_storage_bucket.function_bucket.name
-        object = google_storage_bucket_object.function_archive.name
+        bucket = google_storage_bucket.function_bucket[0].name
+        object = google_storage_bucket_object.function_archive[0].name
       }
     }
 

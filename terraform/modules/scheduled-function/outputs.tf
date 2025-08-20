@@ -41,8 +41,8 @@ output "scheduler_job_name" {
 }
 
 output "storage_bucket_name" {
-  description = "Name of the storage bucket containing function/job source"
-  value       = google_storage_bucket.function_bucket.name
+  description = "Name of the storage bucket containing function source (when execution_type is 'function')"
+  value       = var.execution_type == "function" ? google_storage_bucket.function_bucket[0].name : null
 }
 
 output "function_project_id" {
