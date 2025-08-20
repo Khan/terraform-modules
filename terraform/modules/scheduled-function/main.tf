@@ -17,6 +17,18 @@ terraform {
   }
 }
 
+# Validation for required variables based on execution type
+locals {
+  # Validate that source_dir and main_file are provided for Cloud Functions
+  validate_function_vars = var.execution_type == "function" ? (
+    var.source_dir == null ? tobool("source_dir is required when execution_type is 'function'") : true
+  ) : true
+  
+  validate_main_file = var.execution_type == "function" ? (
+    var.main_file == null ? tobool("main_file is required when execution_type is 'function'") : true
+  ) : true
+}
+
 # Service account for the Cloud Function/Job
 resource "google_service_account" "function_sa" {
   project      = var.project_id

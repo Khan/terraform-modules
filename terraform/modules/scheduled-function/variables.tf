@@ -47,10 +47,6 @@ variable "source_dir" {
   description = "Path to the directory containing the function source code (relative to terraform root, required for Cloud Functions)"
   type        = string
   default     = null
-  validation {
-    condition     = var.execution_type == "function" ? var.source_dir != null : true
-    error_message = "source_dir is required when execution_type is 'function'."
-  }
 }
 
 variable "entry_point" {
@@ -69,10 +65,6 @@ variable "main_file" {
   description = "Name of the main Python file (for GOOGLE_FUNCTION_SOURCE env var, required for Cloud Functions)"
   type        = string
   default     = null
-  validation {
-    condition     = var.execution_type == "function" ? var.main_file != null : true
-    error_message = "main_file is required when execution_type is 'function'."
-  }
 }
 
 # Scheduling configuration
