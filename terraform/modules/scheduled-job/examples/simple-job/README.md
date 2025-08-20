@@ -1,13 +1,13 @@
 # Simple Cloud Run Job Example
 
-This example demonstrates how to use the scheduled-function module to create a Cloud Run Job that runs on a schedule.
+This example demonstrates how to use the scheduled-job module to create a Cloud Run Job that runs on a schedule, with automatic container image building using the cloud-build-docker module.
 
 ## What this example creates
 
 - A Cloud Run Job that processes data daily at 2 AM
 - Cloud Scheduler job to trigger the Cloud Run Job
 - Service account with appropriate permissions
-- Storage bucket for job source code
+- Container image built automatically using Cloud Build
 - Secret Manager IAM bindings
 
 ## Key differences from Cloud Functions
@@ -15,7 +15,8 @@ This example demonstrates how to use the scheduled-function module to create a C
 1. **Execution Type**: Set `execution_type = "job"` to create a Cloud Run Job instead of a Cloud Function
 2. **Triggering**: Cloud Run Jobs are triggered via HTTP calls to the Cloud Run Jobs API (not PubSub)
 3. **Resource Configuration**: Use `job_cpu`, `job_memory`, `job_timeout` instead of function-specific variables
-4. **Command**: Specify the command to run with `job_command` and `job_args`
+4. **Container Images**: Cloud Run Jobs require container images (built automatically with cloud-build-docker module)
+5. **Command**: Specify the command to run with `job_command` and `job_args`
 
 ## Usage
 
@@ -39,10 +40,21 @@ This example demonstrates how to use the scheduled-function module to create a C
 The main configuration differences for Cloud Run Jobs:
 
 ```hcl
+# Build the container image using Cloud Build
+module "daily_data_processor_image" {
+  source = "../../../cloud-build-docker"
+
+  image_name       = "daily-data-processor"
+  context_path     = "./job-code"
+  project_id       = var.project_id
+  image_tag_suffix = "latest"
+}
+
+# Deploy the scheduled job
 module "daily_data_processor" {
   source = "../.."
 
-  function_name      = "daily-data-processor"
+  job_name      = "daily-data-processor"
   execution_type     = "job"  # This creates a Cloud Run Job
   
   # Job-specific configuration
@@ -50,8 +62,8 @@ module "daily_data_processor" {
   job_memory = "2Gi"          # 2 GB memory
   job_timeout = "7200s"        # 2 hours timeout
   
-  # Container image (build and push separately)
-  job_image = "gcr.io/YOUR_PROJECT_ID/daily-data-processor:latest"
+  # Container image (use the built image)
+  job_image = module.daily_data_processor_image.image_digest
   
   # Command to run
   job_command = ["python", "processor.py"]
@@ -71,9 +83,9 @@ The job code in `job-code/processor.py` is a simple Python script that:
 
 ## Important Notes
 
-- **Container Image Required**: You need to build and push a Docker image to Container Registry or Artifact Registry before deploying.
+- **Automatic Image Building**: The cloud-build-docker module automatically builds and pushes your container image using Cloud Build.
 - **Dockerfile**: Include a `Dockerfile` in your source directory to build the container image.
-- **Manual Build/Push**: The module creates the job definition but doesn't handle container image building/pushing.
-- **Build Process**: Use `docker build` and `docker push` or `gcloud builds submit` to create your container image.
+- **Digest Tracking**: The module uses image digests for precise versioning and automatic redeployment when code changes.
+- **Branch-based Caching**: Cloud Build caches layers based on branch names for faster builds.
 - Jobs are triggered via HTTP calls to the Cloud Run Jobs API, not via PubSub like Cloud Functions.
 - Jobs can run for longer periods and have more resources than Cloud Functions.

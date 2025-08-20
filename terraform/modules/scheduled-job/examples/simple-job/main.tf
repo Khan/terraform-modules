@@ -22,6 +22,18 @@ provider "google" {
   region  = var.region
 }
 
+# Build the container image using Cloud Build
+module "daily_data_processor_image" {
+  # When used from another repository, this would be:
+  # source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/cloud-build-docker?ref=v1.0.0"
+  source = "../../../cloud-build-docker"
+
+  image_name       = "daily-data-processor"
+  context_path     = "./job-code"
+  project_id       = var.project_id
+  image_tag_suffix = "latest"
+}
+
 # Simple daily job example
 module "daily_data_processor" {
   # When used from another repository, this would be:
@@ -42,8 +54,8 @@ module "daily_data_processor" {
   job_memory  = "2Gi"
   job_timeout = "7200s" # 2 hours
 
-  # Container image (build and push separately)
-  job_image = "gcr.io/${var.project_id}/daily-data-processor:latest"
+  # Container image (use the built image)
+  job_image = module.daily_data_processor_image.image_digest
 
   environment_variables = {
     ENV       = "production"
@@ -63,9 +75,19 @@ module "daily_data_processor" {
 output "job_info" {
   description = "Information about the deployed job"
   value = {
-    job_name              = module.daily_data_processor.job_name
+    job_name              = module.daily_data_processor.resource_name
     service_account_email = module.daily_data_processor.service_account_email
     scheduler_job_name    = module.daily_data_processor.scheduler_job_name
     execution_type        = module.daily_data_processor.execution_type
+  }
+}
+
+# Output the image details
+output "image_info" {
+  description = "Information about the built container image"
+  value = {
+    image_digest = module.daily_data_processor_image.image_digest
+    image_uri    = module.daily_data_processor_image.image_uri
+    image_tag    = module.daily_data_processor_image.image_tag
   }
 }

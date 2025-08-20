@@ -45,6 +45,17 @@ module "my_daily_task" {
 
 ### Cloud Run Job Example
 ```hcl
+# Build the container image using Cloud Build
+module "data_processor_image" {
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/cloud-build-docker?ref=v1.0.0"
+
+  image_name       = "data-processor"
+  context_path     = "./jobs/data-processor"
+  project_id       = "my-gcp-project"
+  image_tag_suffix = "latest"
+}
+
+# Deploy the scheduled job
 module "my_data_processor" {
   source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
 
@@ -61,7 +72,7 @@ module "my_data_processor" {
   job_cpu    = "2000m"
   job_memory = "2Gi"
   job_timeout = "7200s"  # 2 hours
-  job_image  = "gcr.io/my-gcp-project/my-data-processor:latest"
+  job_image  = module.data_processor_image.image_digest  # Use the built image
 
   environment_variables = {
     ENV = "production"
@@ -336,8 +347,35 @@ For both Cloud Functions and Cloud Run Jobs, include a `requirements.txt` file i
 
 ### Building and Pushing Container Images for Cloud Run Jobs
 
-Before deploying a Cloud Run Job, you need to build and push your container image:
+For Cloud Run Jobs, you need to build and push your container image. The recommended approach is to use the `cloud-build-docker` module:
 
+```hcl
+# Build the container image using Cloud Build
+module "my_job_image" {
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/cloud-build-docker?ref=v1.0.0"
+
+  image_name       = "my-job"
+  context_path     = "./jobs/my-job"
+  project_id       = var.project_id
+  image_tag_suffix = "latest"
+}
+
+# Use the built image in your scheduled job
+module "my_scheduled_job" {
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
+  
+  # ... other configuration
+  job_image = module.my_job_image.image_digest
+}
+```
+
+**Benefits of using the cloud-build-docker module:**
+- **Automatic building**: No manual Docker commands needed
+- **Branch-based caching**: Faster builds with layer caching
+- **Digest tracking**: Precise image versioning in Terraform
+- **Consistent builds**: Same build process across environments
+
+**Alternative manual approach:**
 ```bash
 # Build the image
 docker build -t gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest ./jobs/your-job
@@ -346,8 +384,7 @@ docker build -t gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest ./jobs/your-job
 docker push gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest
 ```
 
-Or use Cloud Build:
-
+Or use Cloud Build directly:
 ```bash
 gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest ./jobs/your-job
 ```
