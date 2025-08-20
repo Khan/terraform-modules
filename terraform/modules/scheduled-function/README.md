@@ -60,7 +60,7 @@ module "my_data_processor" {
   # Job-specific configuration
   job_cpu    = "2000m"
   job_memory = "2Gi"
-  job_timeout = 7200  # 2 hours
+  job_timeout = "7200s"  # 2 hours
   job_image  = "gcr.io/my-gcp-project/my-data-processor:latest"
 
   environment_variables = {
@@ -217,7 +217,7 @@ module "data_processor" {
 ### Cloud Run Job specific (when `execution_type = "job"`)
 - `job_cpu` - CPU allocation (e.g., "1000m", "2") ("1000m")
 - `job_memory` - Memory allocation (e.g., "512Mi", "2Gi") ("512Mi")
-- `job_timeout` - Timeout in seconds (3600)
+- `job_timeout` - Timeout duration (e.g., "3600s", "1h", "2h30m") ("3600s")
 - `job_parallelism` - Number of parallel executions (1)
 - `job_task_count` - Number of tasks to run (1)
 - `job_command` - Command to run (["python", "main.py"])
