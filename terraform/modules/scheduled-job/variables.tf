@@ -17,12 +17,12 @@ variable "execution_type" {
   }
 }
 
-variable "function_name" {
-  description = "Name of the Cloud Function and related resources (will be used as prefix)"
+variable "job_name" {
+  description = "Name of the Cloud Function/Job and related resources (will be used as prefix)"
   type        = string
   validation {
-    condition     = can(regex("^[a-z][a-z0-9-]*[a-z0-9]$", var.function_name))
-    error_message = "Function name must start with a letter, contain only lowercase letters, numbers, and hyphens, and end with a letter or number."
+    condition     = can(regex("^[a-z][a-z0-9-]*[a-z0-9]$", var.job_name))
+    error_message = "Job name must start with a letter, contain only lowercase letters, numbers, and hyphens, and end with a letter or number."
   }
 }
 

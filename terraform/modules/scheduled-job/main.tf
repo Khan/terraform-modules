@@ -20,9 +20,9 @@ terraform {
 # Service account for the Cloud Function/Job
 resource "google_service_account" "function_sa" {
   project      = var.project_id
-  account_id   = "${var.function_name}-sa"
-  display_name = "Service Account for ${var.function_name} ${var.execution_type}"
-  description  = "Service account used by the ${var.function_name} scheduled ${var.execution_type}"
+  account_id   = "${var.job_name}-sa"
+  display_name = "Service Account for ${var.job_name} ${var.execution_type}"
+  description  = "Service account used by the ${var.job_name} scheduled ${var.execution_type}"
 }
 
 # Storage bucket for function source code (only for Cloud Functions)
@@ -30,7 +30,7 @@ resource "google_storage_bucket" "function_bucket" {
   count = var.execution_type == "function" ? 1 : 0
 
   project                     = var.project_id
-  name                        = "${var.function_name}-source-${var.project_id}"
+  name                        = "${var.job_name}-source-${var.project_id}"
   location                    = var.region
   uniform_bucket_level_access = true
   force_destroy               = true
@@ -41,8 +41,8 @@ data "archive_file" "function_archive" {
   count = var.execution_type == "function" ? 1 : 0
 
   type        = "zip"
-  output_path = "${path.module}/${var.function_name}-function.zip"
-  source_dir  = abspath(var.source_dir)
+  output_path = "${path.module}/${var.job_name}-function.zip"
+  source_dir  = var.source_dir
   excludes    = var.excludes
 }
 
@@ -54,7 +54,7 @@ data "archive_file" "function_archive" {
 resource "google_storage_bucket_object" "function_archive" {
   count = var.execution_type == "function" ? 1 : 0
 
-  name   = "${var.function_name}-function-${data.archive_file.function_archive[0].output_sha}.zip"
+  name   = "${var.job_name}-function-${data.archive_file.function_archive[0].output_sha}.zip"
   bucket = google_storage_bucket.function_bucket[0].name
   source = data.archive_file.function_archive[0].output_path
 }
@@ -64,7 +64,7 @@ resource "google_pubsub_topic" "function_topic" {
   count = var.execution_type == "function" ? 1 : 0
 
   project = var.project_id
-  name    = "${var.function_name}-topic"
+  name    = "${var.job_name}-topic"
 }
 
 # Cloud Scheduler job for Cloud Function (only created when execution_type is "function")
@@ -72,7 +72,7 @@ resource "google_cloud_scheduler_job" "function_scheduler" {
   count = var.execution_type == "function" ? 1 : 0
 
   project     = var.project_id
-  name        = "${var.function_name}-scheduler"
+  name        = "${var.job_name}-scheduler"
   description = var.description
   schedule    = var.schedule
   time_zone   = var.time_zone
@@ -100,7 +100,7 @@ resource "google_cloudfunctions2_function" "function" {
   count = var.execution_type == "function" ? 1 : 0
 
   project     = var.project_id
-  name        = var.function_name
+  name        = var.job_name
   description = var.description
   location    = var.region
 
@@ -157,7 +157,7 @@ resource "google_cloud_run_v2_job" "job" {
   count = var.execution_type == "job" ? 1 : 0
 
   project  = var.project_id
-  name     = var.function_name
+  name     = var.job_name
   location = var.region
 
   template {
@@ -216,15 +216,14 @@ resource "google_cloud_scheduler_job" "job_scheduler" {
   count = var.execution_type == "job" ? 1 : 0
 
   project     = var.project_id
-  name        = "${var.function_name}-job-scheduler"
+  name        = "${var.job_name}-job-scheduler"
   description = var.description
   schedule    = var.schedule
   time_zone   = var.time_zone
 
   http_target {
     http_method = "POST"
-    uri         = "https://run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${var.function_name}:run"
-
+    uri         = "https://run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${var.job_name}:run"
     headers = {
       "Content-Type" = "application/json"
     }

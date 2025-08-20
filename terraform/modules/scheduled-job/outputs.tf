@@ -1,13 +1,8 @@
 # Outputs for the Scheduled Cloud Function/Job module
 
-output "function_name" {
-  description = "Name of the Cloud Function (when execution_type is 'function')"
-  value       = var.execution_type == "function" ? google_cloudfunctions2_function.function[0].name : null
-}
-
-output "job_name" {
-  description = "Name of the Cloud Run Job (when execution_type is 'job')"
-  value       = var.execution_type == "job" ? google_cloud_run_v2_job.job[0].name : null
+output "resource_name" {
+  description = "Name of the Cloud Function or Cloud Run Job"
+  value       = var.execution_type == "function" ? google_cloudfunctions2_function.function[0].name : google_cloud_run_v2_job.job[0].name
 }
 
 output "function_url" {
@@ -45,13 +40,13 @@ output "storage_bucket_name" {
   value       = var.execution_type == "function" ? google_storage_bucket.function_bucket[0].name : null
 }
 
-output "function_project_id" {
-  description = "Project ID where the function/job is deployed"
+output "project_id" {
+  description = "Project ID where the function or job is deployed"
   value       = var.project_id
 }
 
-output "function_region" {
-  description = "Region where the function/job is deployed"
+output "region" {
+  description = "Region where the function or job is deployed"
   value       = var.region
 }
 
