@@ -1,5 +1,5 @@
-# Scheduled Cloud Function Module
-# This module creates a complete scheduled Cloud Function setup with all necessary components
+# Scheduled Cloud Function/Job Module
+# This module creates a complete scheduled Cloud Function or Cloud Run Job setup with all necessary components
 
 # Required providers
 terraform {
@@ -17,15 +17,15 @@ terraform {
   }
 }
 
-# Service account for the Cloud Function
+# Service account for the Cloud Function/Job
 resource "google_service_account" "function_sa" {
   project      = var.project_id
   account_id   = "${var.function_name}-sa"
-  display_name = "Service Account for ${var.function_name} function"
-  description  = "Service account used by the ${var.function_name} scheduled Cloud Function"
+  display_name = "Service Account for ${var.function_name} ${var.execution_type}"
+  description  = "Service account used by the ${var.function_name} scheduled ${var.execution_type}"
 }
 
-# Storage bucket for function source code
+# Storage bucket for function/job source code
 resource "google_storage_bucket" "function_bucket" {
   project                     = var.project_id
   name                        = "${var.function_name}-source-${var.project_id}"
@@ -34,33 +34,37 @@ resource "google_storage_bucket" "function_bucket" {
   force_destroy               = true
 }
 
-# Create function source archive
+# Create function/job source archive
 data "archive_file" "function_archive" {
   type        = "zip"
-  output_path = "${path.module}/${var.function_name}-function.zip"
-  source_dir  = abspath(var.source_dir)
+  output_path = "${path.module}/${var.function_name}-${var.execution_type}.zip"
+  source_dir  = var.source_dir
   excludes    = var.excludes
 }
 
-# Upload function archive to storage bucket
+# Upload function/job archive to storage bucket
 # The object name includes the source code hash, ensuring:
 # 1. Cloud Function redeploys when source code changes (new hash = new object name)
 # 2. Terraform automatically deletes old zip files when hash changes (resource replacement)
 # 3. No manual cleanup or lifecycle rules needed - Terraform handles it
 resource "google_storage_bucket_object" "function_archive" {
-  name   = "${var.function_name}-function-${data.archive_file.function_archive.output_sha}.zip"
+  name   = "${var.function_name}-${var.execution_type}-${data.archive_file.function_archive.output_sha}.zip"
   bucket = google_storage_bucket.function_bucket.name
   source = data.archive_file.function_archive.output_path
 }
 
-# PubSub topic for triggering the function
+# PubSub topic for triggering the Cloud Function (only created when execution_type is "function")
 resource "google_pubsub_topic" "function_topic" {
+  count = var.execution_type == "function" ? 1 : 0
+
   project = var.project_id
   name    = "${var.function_name}-topic"
 }
 
-# Cloud Scheduler job
+# Cloud Scheduler job for Cloud Function (only created when execution_type is "function")
 resource "google_cloud_scheduler_job" "function_scheduler" {
+  count = var.execution_type == "function" ? 1 : 0
+
   project     = var.project_id
   name        = "${var.function_name}-scheduler"
   description = var.description
@@ -68,7 +72,7 @@ resource "google_cloud_scheduler_job" "function_scheduler" {
   time_zone   = var.time_zone
 
   pubsub_target {
-    topic_name = google_pubsub_topic.function_topic.id
+    topic_name = google_pubsub_topic.function_topic[0].id
     data       = base64encode("{}")
   }
 }
@@ -85,8 +89,10 @@ resource "google_secret_manager_secret_iam_member" "function_secret_access" {
   member    = "serviceAccount:${google_service_account.function_sa.email}"
 }
 
-# The main Cloud Function
+# The main Cloud Function (only created when execution_type is "function")
 resource "google_cloudfunctions2_function" "function" {
+  count = var.execution_type == "function" ? 1 : 0
+
   project     = var.project_id
   name        = var.function_name
   description = var.description
@@ -135,7 +141,96 @@ resource "google_cloudfunctions2_function" "function" {
   event_trigger {
     trigger_region = var.region
     event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
-    pubsub_topic   = google_pubsub_topic.function_topic.id
+    pubsub_topic   = google_pubsub_topic.function_topic[0].id
     retry_policy   = var.retries_enabled ? "RETRY_POLICY_RETRY" : "RETRY_POLICY_DO_NOT_RETRY"
+  }
+}
+
+# Cloud Run Job (only created when execution_type is "job")
+resource "google_cloud_run_v2_job" "job" {
+  count = var.execution_type == "job" ? 1 : 0
+
+  project  = var.project_id
+  name     = var.function_name
+  location = var.region
+
+  template {
+    template {
+      task_count = var.job_task_count
+      parallelism = var.job_parallelism
+      timeout     = var.job_timeout
+
+      template {
+        containers {
+          image = var.job_image
+          
+          command = var.job_command
+          args    = var.job_args
+
+          resources {
+            limits = {
+              cpu    = var.job_cpu
+              memory = var.job_memory
+            }
+          }
+
+          # Environment variables
+          dynamic "env" {
+            for_each = var.environment_variables
+            content {
+              name  = env.key
+              value = env.value
+            }
+          }
+
+          # Secret environment variables
+          dynamic "env" {
+            for_each = var.secrets
+            content {
+              name = env.value.env_var_name
+              value_source {
+                secret_key_ref {
+                  secret  = env.value.secret_id
+                  version = env.value.version
+                }
+              }
+            }
+          }
+        }
+
+        service_account = google_service_account.function_sa.email
+      }
+    }
+  }
+}
+
+
+
+# Get project number for PubSub service account
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
+# Cloud Scheduler job for Cloud Run Job (only created when execution_type is "job")
+resource "google_cloud_scheduler_job" "job_scheduler" {
+  count = var.execution_type == "job" ? 1 : 0
+
+  project     = var.project_id
+  name        = "${var.function_name}-job-scheduler"
+  description = var.description
+  schedule    = var.schedule
+  time_zone   = var.time_zone
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://${var.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${var.function_name}:run"
+    
+    headers = {
+      "Content-Type" = "application/json"
+    }
+
+    oauth_token {
+      service_account_email = google_service_account.function_sa.email
+    }
   }
 } 

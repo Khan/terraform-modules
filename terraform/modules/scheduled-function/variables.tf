@@ -1,11 +1,21 @@
-# Variables for the Scheduled Cloud Function module
-# This module creates a complete scheduled Cloud Function setup with:
-# - Cloud Function (2nd gen)
+# Variables for the Scheduled Cloud Function/Job module
+# This module creates a complete scheduled setup with:
+# - Cloud Function (2nd gen) OR Cloud Run Job
 # - Cloud Scheduler job
 # - PubSub topic for triggering
 # - Service account with appropriate permissions
-# - Storage bucket for function code
+# - Storage bucket for function/job code
 # - Secret Manager IAM bindings
+
+variable "execution_type" {
+  description = "Type of execution: 'function' for Cloud Functions or 'job' for Cloud Run Jobs"
+  type        = string
+  default     = "function"
+  validation {
+    condition     = contains(["function", "job"], var.execution_type)
+    error_message = "Execution type must be either 'function' or 'job'."
+  }
+}
 
 variable "function_name" {
   description = "Name of the Cloud Function and related resources (will be used as prefix)"
@@ -132,5 +142,53 @@ variable "build_environment_variables" {
   description = "Environment variables for the build process"
   type        = map(string)
   default     = {}
+}
+
+# Cloud Run Job specific variables
+variable "job_cpu" {
+  description = "CPU allocation for the Cloud Run Job (e.g., '1000m', '2')"
+  type        = string
+  default     = "1000m"
+}
+
+variable "job_memory" {
+  description = "Memory allocation for the Cloud Run Job (e.g., '512Mi', '2Gi')"
+  type        = string
+  default     = "512Mi"
+}
+
+variable "job_timeout" {
+  description = "Timeout for the Cloud Run Job in seconds"
+  type        = string
+  default     = "3600"
+}
+
+variable "job_parallelism" {
+  description = "Number of parallel executions for the Cloud Run Job"
+  type        = number
+  default     = 1
+}
+
+variable "job_task_count" {
+  description = "Number of tasks to run for the Cloud Run Job"
+  type        = number
+  default     = 1
+}
+
+variable "job_command" {
+  description = "Command to run in the Cloud Run Job container"
+  type        = list(string)
+  default     = ["python", "main.py"]
+}
+
+variable "job_args" {
+  description = "Arguments to pass to the command in the Cloud Run Job"
+  type        = list(string)
+  default     = []
+}
+
+variable "job_image" {
+  description = "Container image URL for the Cloud Run Job (e.g., 'gcr.io/project-id/job-name:latest')"
+  type        = string
 }
 
