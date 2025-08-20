@@ -31,34 +31,24 @@ resource "google_storage_bucket" "function_bucket" {
   name                        = "${var.function_name}-source-${var.project_id}"
   location                    = var.region
   uniform_bucket_level_access = true
-
-  # Enable versioned objects
-  versioning {
-    enabled = true
-  }
-
-  # Keep only the 3 most recent versions of each object
-  lifecycle_rule {
-    condition {
-      num_newer_versions = 3
-    }
-    action {
-      type = "Delete"
-    }
-  }
+  force_destroy               = true
 }
 
 # Create function source archive
 data "archive_file" "function_archive" {
   type        = "zip"
   output_path = "${path.module}/${var.function_name}-function.zip"
-  source_dir  = var.source_dir
+  source_dir  = abspath(var.source_dir)
   excludes    = var.excludes
 }
 
 # Upload function archive to storage bucket
+# The object name includes the source code hash, ensuring:
+# 1. Cloud Function redeploys when source code changes (new hash = new object name)
+# 2. Terraform automatically deletes old zip files when hash changes (resource replacement)
+# 3. No manual cleanup or lifecycle rules needed - Terraform handles it
 resource "google_storage_bucket_object" "function_archive" {
-  name   = "${var.function_name}-function.zip"
+  name   = "${var.function_name}-function-${data.archive_file.function_archive.output_sha}.zip"
   bucket = google_storage_bucket.function_bucket.name
   source = data.archive_file.function_archive.output_path
 }
@@ -146,6 +136,6 @@ resource "google_cloudfunctions2_function" "function" {
     trigger_region = var.region
     event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
     pubsub_topic   = google_pubsub_topic.function_topic.id
-    retry_policy   = "RETRY_POLICY_RETRY"
+    retry_policy   = var.retries_enabled ? "RETRY_POLICY_RETRY" : "RETRY_POLICY_DO_NOT_RETRY"
   }
 } 
