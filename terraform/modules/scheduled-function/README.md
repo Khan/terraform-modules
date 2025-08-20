@@ -1,13 +1,13 @@
 # terraform-scheduled-function-module
 
-A reusable Terraform module for scheduled Google Cloud Functions.
+A reusable Terraform module for scheduled Google Cloud Functions and Cloud Run Jobs.
 
 ## Features
 
-Creates a complete scheduled function setup:
-- Cloud Function (2nd gen) with configurable runtime
+Creates a complete scheduled setup:
+- **Cloud Function (2nd gen)** OR **Cloud Run Job** with configurable runtime
 - Cloud Scheduler with cron-based scheduling  
-- PubSub topic for reliable triggering
+- PubSub topic for reliable triggering (Cloud Functions only)
 - Service account with least-privilege permissions
 - Storage bucket with lifecycle management
 - Secret Manager IAM bindings
@@ -15,11 +15,13 @@ Creates a complete scheduled function setup:
 
 ## Quick Start
 
+### Cloud Function Example
 ```hcl
 module "my_daily_task" {
-  source = "git::https://github.com/Khan/terraform-scheduled-function-module.git?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
 
   function_name      = "my-daily-task"
+  execution_type     = "function"  # Default, can be omitted
   project_id         = "my-gcp-project"
   secrets_project_id = "my-secrets-gcp-project"
   source_dir         = "./functions/my-task"
@@ -41,16 +43,85 @@ module "my_daily_task" {
 }
 ```
 
+### Cloud Run Job Example
+```hcl
+module "my_data_processor" {
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
+
+  function_name      = "my-data-processor"
+  execution_type     = "job"
+  project_id         = "my-gcp-project"
+  secrets_project_id = "my-secrets-gcp-project"
+  source_dir         = "./jobs/data-processor"
+  main_file          = "processor.py"
+  schedule           = "0 2 * * *"  # 2 AM daily
+  description        = "Daily data processing job"
+
+  # Job-specific configuration
+  job_cpu    = "2000m"
+  job_memory = "2Gi"
+  job_timeout = "7200s"  # 2 hours
+  job_image  = "gcr.io/my-gcp-project/my-data-processor:latest"
+
+  environment_variables = {
+    ENV = "production"
+  }
+
+  secrets = [
+    {
+      env_var_name = "DATABASE_URL"
+      secret_id    = "database-connection"
+      version      = "latest"
+    }
+  ]
+}
+```
+
 ## Examples
 
 Complete working examples are available in the [`examples/`](./examples/) directory:
 
-- **[`simple-function/`](./examples/simple-function/)** - Basic scheduled function with minimal configuration
+- **[`simple-function/`](./examples/simple-function/)** - Basic scheduled Cloud Function with minimal configuration
+- **[`simple-job/`](./examples/simple-job/)** - Basic scheduled Cloud Run Job with minimal configuration
 
 Each example includes:
 - Complete Terraform configuration
-- Sample function code with `requirements.txt`
+- Sample code with `requirements.txt`
 - Documentation on how to deploy and test
+
+## Cloud Functions vs Cloud Run Jobs
+
+### When to use Cloud Functions (`execution_type = "function"`)
+- **Short-running tasks** (up to 60 minutes)
+- **Event-driven workloads** (PubSub, HTTP, etc.)
+- **Serverless scaling** (0 to many instances)
+- **Simple Python/Node.js/Go applications**
+- **Cost-effective for sporadic workloads**
+
+### When to use Cloud Run Jobs (`execution_type = "job"`)
+- **Long-running batch processes** (up to 24 hours)
+- **Resource-intensive workloads** (high CPU/memory)
+- **Scheduled batch jobs** (ETL, data processing, reports)
+- **Container-based applications**
+- **Parallel processing** (multiple tasks)
+- **Custom runtimes** (any container image)
+
+### Key Differences
+
+| Feature | Cloud Functions | Cloud Run Jobs |
+|---------|----------------|----------------|
+| **Max Runtime** | 60 minutes | 24 hours |
+| **Triggering** | PubSub, HTTP, etc. | HTTP API calls |
+| **Scaling** | Auto-scaling | Manual execution |
+| **Resources** | Limited CPU/memory | Configurable CPU/memory |
+| **Container** | Runtime-based | Custom container images |
+| **Parallelism** | Multiple instances | Configurable parallelism |
+
+### Cost Considerations
+
+**Pricing is extremely similar** between Cloud Functions (2nd gen) and Cloud Run Jobs since both are billed as Cloud Run services. See the [official Cloud Run pricing page](https://cloud.google.com/run/pricing) for current rates.
+
+*Note: Both execution types use the same pricing model, so cost should not be the primary factor in your decision.*
 
 ## Cross-Repository Usage
 
@@ -58,13 +129,13 @@ Each example includes:
 ```hcl
 # Production: Pin to specific version
 module "backup" {
-  source = "git::https://github.com/YourOrg/terraform-scheduled-function-module.git?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
   # ... config
 }
 
 # Development: Use latest
 module "test_function" {
-  source = "git::https://github.com/YourOrg/terraform-scheduled-function-module.git"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function"
   # ... config
 }
 ```
@@ -74,7 +145,7 @@ module "test_function" {
 ### Multiple Functions
 ```hcl
 module "daily_backup" {
-  source = "git::https://github.com/YourOrg/terraform-scheduled-function-module.git?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
   
   function_name = "daily-backup"
   schedule      = "0 2 * * *"  # 2 AM daily
@@ -84,7 +155,7 @@ module "daily_backup" {
 }
 
 module "weekly_reports" {
-  source = "git::https://github.com/YourOrg/terraform-scheduled-function-module.git?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
   
   function_name = "weekly-reports"
   schedule      = "0 9 * * 1"  # Monday 9 AM
@@ -98,7 +169,7 @@ module "weekly_reports" {
 ### Advanced Configuration
 ```hcl
 module "data_processor" {
-  source = "git::https://github.com/YourOrg/terraform-scheduled-function-module.git?ref=v1.0.0"
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-function?ref=v1.0.0"
   
   function_name      = "data-processor"
   project_id         = var.project_id
@@ -132,28 +203,43 @@ module "data_processor" {
 ## Requirements & Inputs
 
 ### Required
-- `function_name` - Unique name for your function
+- `function_name` - Unique name for your function/job
 - `project_id` - GCP project for resources
 - `secrets_project_id` - GCP project containing secrets
-- `source_dir` - Path to function code
+- `source_dir` - Path to function/job code
 - `main_file` - Python file name (e.g., "main.py"), relative to `source_dir`.
 - `schedule` - Cron expression (e.g., "0 9 * * 1-5")
-- `description` - Function description
+- `description` - Function/job description
 
 ### Optional (with defaults)
+- `execution_type` - "function" or "job" ("function")
 - `region` - GCP region ("us-central1")
 - `runtime` - Function runtime ("python311")
-- `memory` - Memory allocation ("2048M")
-- `timeout_seconds` - Timeout (60)
+- `memory` - Memory allocation for functions ("2048M")
+- `timeout_seconds` - Timeout for functions (60)
 - `environment_variables` - Environment vars ({})
 - `secrets` - Secret Manager secrets ([])
 
+### Cloud Run Job specific (when `execution_type = "job"`)
+- `job_cpu` - CPU allocation (e.g., "1000m", "2") ("1000m")
+- `job_memory` - Memory allocation (e.g., "512Mi", "2Gi") ("512Mi")
+- `job_timeout` - Timeout duration (e.g., "3600s", "1h", "2h30m") ("3600s")
+- `job_parallelism` - Number of parallel executions (1)
+- `job_task_count` - Number of tasks to run (1)
+- `job_command` - Command to run (["python", "main.py"])
+- `job_args` - Command arguments ([])
+- `job_image` - Container image URL (required)
+
 ## Outputs
 
-- `function_name` - Name of deployed function
-- `function_url` - Function URL
-- `service_account_email` - Function service account
+- `function_name` - Name of deployed function (when `execution_type = "function"`)
+- `job_name` - Name of deployed job (when `execution_type = "job"`)
+- `function_url` - Function URL (when `execution_type = "function"`)
+- `service_account_email` - Service account email
 - `scheduler_job_name` - Scheduler job name
+- `pubsub_topic_name` - PubSub topic name (when `execution_type = "function"`)
+- `storage_bucket_name` - Storage bucket name
+- `execution_type` - The execution type used
 
 ## Repository Structure
 
@@ -168,12 +254,17 @@ your-app-repo/
 │   └── reports/
 │       ├── main.py
 │       └── requirements.txt
+├── jobs/
+│   └── data-processor/
+│       ├── processor.py
+│       ├── requirements.txt
+│       └── Dockerfile
 └── README.md
 ```
 
-## Function Code Structure
+## Code Structure
 
-### Required Files
+### Cloud Functions
 
 Your source directory must contain:
 
@@ -183,7 +274,7 @@ functions/my-task/
 └── requirements.txt     # Python dependencies (if needed)
 ```
 
-### Python Function Code
+#### Python Function Code
 
 ```python
 # functions/my-task/main.py
@@ -196,9 +287,71 @@ def main(cloud_event):
     return "Success"
 ```
 
+### Cloud Run Jobs
+
+Your source directory should contain:
+
+```
+jobs/my-job/
+├── processor.py         # Main job script
+├── requirements.txt     # Python dependencies
+└── Dockerfile          # Container definition
+```
+
+#### Python Job Code
+
+```python
+# jobs/my-job/processor.py
+#!/usr/bin/env python3
+import os
+import sys
+import logging
+
+def main():
+    """Main function for the Cloud Run Job."""
+    logging.info("Starting job...")
+    # Your job logic here
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+#### Dockerfile Example
+
+```dockerfile
+# jobs/my-job/Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+CMD ["python", "processor.py"]
+```
+
 ### Dependencies
 
-If your function uses external packages, include a `requirements.txt` file. Cloud Functions automatically install dependencies from `requirements.txt` during deployment. No local installation is needed - the module simply packages your source code and lets Cloud Functions handle dependency management.
+For both Cloud Functions and Cloud Run Jobs, include a `requirements.txt` file if your code uses external packages. Cloud Functions automatically install dependencies during deployment, while Cloud Run Jobs require a Dockerfile to build the container image.
+
+### Building and Pushing Container Images for Cloud Run Jobs
+
+Before deploying a Cloud Run Job, you need to build and push your container image:
+
+```bash
+# Build the image
+docker build -t gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest ./jobs/your-job
+
+# Push to Container Registry
+docker push gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest
+```
+
+Or use Cloud Build:
+
+```bash
+gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest ./jobs/your-job
+```
 
 ## Common Cron Patterns
 
