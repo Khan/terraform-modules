@@ -122,13 +122,17 @@ def build_image(
         subs_str = ",".join(f"{k}={v}" for k, v in substitutions.items())
 
         # Submit to Cloud Build
+        # Get the directory where this script is located to find cloudbuild.yml
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        cloudbuild_config = os.path.join(script_dir, "cloudbuild.yml")
+        
         run_command(
             [
                 "gcloud",
                 "builds",
                 "submit",
                 context_path,
-                "--config=cloudbuild.yml",
+                f"--config={cloudbuild_config}",
                 f"--project={project_id}",
                 f"--gcs-source-staging-dir=gs://{project_id}-cloudbuild-ci/staging",
                 f"--gcs-log-dir=gs://{project_id}-cloudbuild-ci/logs",
