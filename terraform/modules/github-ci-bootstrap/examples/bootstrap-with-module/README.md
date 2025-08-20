@@ -8,7 +8,7 @@ This configuration uses the reusable `github-ci-bootstrap` module to create:
 
 - Service account for running Terraform operations in GitHub Actions (in khan-internal-services project)
 - Workload Identity Federation using shared pool for keyless authentication
-- IAM permissions for deploying Cloud Functions, Storage, Pub/Sub, and Scheduler resources via Terraform
+- IAM permissions for deploying Cloud Functions, Storage, Pub/Sub, Scheduler, Cloud Run (services and jobs), and Cloud Build resources via Terraform
 - Access to secrets in Google Secret Manager that the Terraform configuration needs
 - Permissions for Terraform state bucket management
 
@@ -73,7 +73,7 @@ The module is configured for the Culture Cron production Terraform configuration
 
 - **Terraform Configuration**: `culture-cron-prod` (production environment managed in CI)
 - **Repository**: `Khan/culture-cron` (GitHub repository containing Terraform code)
-- **Target Project**: `khan-internal-services` with Cloud Functions, Storage, Pub/Sub, Scheduler services
+- **Target Project**: `khan-internal-services` with Cloud Functions, Storage, Pub/Sub, Scheduler, Cloud Run (services and jobs), and Cloud Build services
 - **State Bucket**: `terraform-khan-culture-cron-culture-cron-prod` (automatically computed from repository and service)
 - **Secrets**: `khan-academy` (Slack token storage needed by the Terraform configuration)
 

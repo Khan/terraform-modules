@@ -31,11 +31,13 @@ variable "target_projects" {
           "cloudfunctions",
           "storage",
           "pubsub",
-          "scheduler"
+          "scheduler",
+          "run",
+          "cloudbuild"
         ], service)
       ]
     ]))
-    error_message = "Required services must be one of: cloudfunctions, storage, pubsub, scheduler."
+    error_message = "Required services must be one of: cloudfunctions, storage, pubsub, scheduler, run, cloudbuild."
   }
 }
 

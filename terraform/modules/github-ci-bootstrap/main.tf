@@ -19,6 +19,8 @@ locals {
     storage        = "roles/storage.admin"
     pubsub         = "roles/pubsub.admin"
     scheduler      = "roles/cloudscheduler.admin"
+    run            = "roles/run.admin"
+    cloudbuild     = "roles/cloudbuild.builds.builder"
   }
 
   # Parse GitHub repository into org and repo name

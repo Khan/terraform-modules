@@ -45,7 +45,7 @@ module "culture_cron_terraform_ci" {
   # Target projects where this Terraform configuration deploys resources via CI
   target_projects = {
     "khan-academy" = {
-      required_services = ["cloudfunctions", "storage", "pubsub", "scheduler"]
+      required_services = ["cloudfunctions", "storage", "pubsub", "scheduler", "run", "cloudbuild"]
     }
   }
   
@@ -93,6 +93,8 @@ These services correspond to GCP resources that your Terraform configuration can
 - `storage` - Enables creating and managing Cloud Storage buckets via Terraform  
 - `pubsub` - Enables creating and managing Pub/Sub topics and subscriptions via Terraform
 - `scheduler` - Enables creating and managing Cloud Scheduler jobs via Terraform
+- `run` - Enables deploying and managing Cloud Run services and jobs via Terraform
+- `cloudbuild` - Enables creating and managing Cloud Build triggers and configurations via Terraform
 
 ### Terraform State Bucket Default
 
@@ -285,5 +287,25 @@ module "static_site_prod_ci" {
   }
   
   # Terraform state bucket defaults to: terraform-khan-static-site-static-site-prod
+}
+```
+
+### Terraform Configuration with Cloud Run and Cloud Build
+```hcl
+# CI for webapp Terraform configuration that manages Cloud Run services and Cloud Build
+module "webapp_prod_ci" {
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/github-ci-bootstrap?ref=v1.0.0"
+
+  service_name      = "webapp-prod"
+  github_repository = "Khan/webapp"
+  
+  # This Terraform config manages Cloud Run services, jobs, and Cloud Build
+  target_projects = {
+    "khan-academy" = {
+      required_services = ["run", "cloudbuild", "storage"]
+    }
+  }
+  
+  # Terraform state bucket defaults to: terraform-khan-webapp-webapp-prod
 }
 ```
