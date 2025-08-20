@@ -48,7 +48,7 @@ module "daily_data_processor" {
   # Job-specific configuration
   job_cpu    = "2000m"        # 2 CPU cores
   job_memory = "2Gi"          # 2 GB memory
-  job_timeout = "7200"        # 2 hours timeout
+  job_timeout = 7200        # 2 hours timeout
   
   # Container image (build and push separately)
   job_image = "gcr.io/YOUR_PROJECT_ID/daily-data-processor:latest"

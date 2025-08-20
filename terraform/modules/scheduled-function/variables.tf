@@ -159,8 +159,8 @@ variable "job_memory" {
 
 variable "job_timeout" {
   description = "Timeout for the Cloud Run Job in seconds"
-  type        = string
-  default     = "3600"
+  type        = number
+  default     = 3600
 }
 
 variable "job_parallelism" {

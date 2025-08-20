@@ -157,7 +157,6 @@ resource "google_cloud_run_v2_job" "job" {
   template {
     task_count = var.job_task_count
     parallelism = var.job_parallelism
-    timeout     = var.job_timeout
 
     template {
       containers {
@@ -198,6 +197,7 @@ resource "google_cloud_run_v2_job" "job" {
       }
 
       service_account = google_service_account.function_sa.email
+      timeout         = var.job_timeout
     }
   }
 }
