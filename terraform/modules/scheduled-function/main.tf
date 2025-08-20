@@ -67,7 +67,7 @@ resource "google_storage_bucket_object" "function_archive" {
   count = var.execution_type == "function" ? 1 : 0
   
   name   = "${var.function_name}-function-${data.archive_file.function_archive[0].output_sha}.zip"
-  bucket = google_storage_bucket.function_bucket.name
+  bucket = google_storage_bucket.function_bucket[0].name
   source = data.archive_file.function_archive[0].output_path
 }
 
