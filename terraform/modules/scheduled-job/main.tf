@@ -249,10 +249,7 @@ resource "google_cloud_scheduler_job" "job_scheduler" {
 
   http_target {
     http_method = "POST"
-    uri         = "https://run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${var.job_name}:run"
-    headers = {
-      "Content-Type" = "application/json"
-    }
+    uri         = "https://${var.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${var.job_name}:run"
 
     oauth_token {
       service_account_email = google_service_account.function_sa.email
