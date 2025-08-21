@@ -95,6 +95,16 @@ resource "google_secret_manager_secret_iam_member" "function_secret_access" {
   member    = "serviceAccount:${google_service_account.function_sa.email}"
 }
 
+# IAM binding for Cloud Run Jobs (when execution_type is "job")
+# The service account needs permission to invoke Cloud Run Jobs via the API
+resource "google_project_iam_member" "job_invoker" {
+  count = var.execution_type == "job" ? 1 : 0
+
+  project = var.project_id
+  role    = "roles/run.developer"
+  member  = "serviceAccount:${google_service_account.function_sa.email}"
+}
+
 # The main Cloud Function (only created when execution_type is "function")
 resource "google_cloudfunctions2_function" "function" {
   count = var.execution_type == "function" ? 1 : 0
@@ -239,13 +249,11 @@ resource "google_cloud_scheduler_job" "job_scheduler" {
 
   http_target {
     http_method = "POST"
-    uri         = "https://run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${var.job_name}:run"
-    headers = {
-      "Content-Type" = "application/json"
-    }
+    uri         = "https://${var.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${var.job_name}:run"
 
     oauth_token {
       service_account_email = google_service_account.function_sa.email
+      scope                 = "https://www.googleapis.com/auth/cloud-platform"
     }
   }
 } 
