@@ -104,6 +104,9 @@ resource "google_cloudfunctions2_function" "function" {
   description = var.description
   location    = var.region
 
+  # Ensure IAM bindings are created before the function
+  depends_on = [google_secret_manager_secret_iam_member.function_secret_access]
+
   build_config {
     runtime     = var.runtime
     entry_point = var.entry_point
@@ -159,6 +162,12 @@ resource "google_cloud_run_v2_job" "job" {
   project  = var.project_id
   name     = var.job_name
   location = var.region
+
+  # Allow Terraform to manage the job lifecycle
+  deletion_protection = false
+
+  # Ensure IAM bindings are created before the job
+  depends_on = [google_secret_manager_secret_iam_member.function_secret_access]
 
   lifecycle {
     precondition {
