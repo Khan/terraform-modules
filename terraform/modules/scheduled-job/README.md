@@ -408,13 +408,13 @@ module "my_function" {
   source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
   
   job_name = "my-function"
+  owner   = "data-team"
   # ... other configuration
   
   tags = {
     "environment" = "production"
     "team"        = "data-engineering"
     "cost-center" = "infrastructure"
-    "owner"       = "data-team"
   }
 }
 ```

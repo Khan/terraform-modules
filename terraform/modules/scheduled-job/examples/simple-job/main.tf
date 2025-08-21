@@ -77,11 +77,12 @@ module "daily_data_processor" {
     }
   ]
 
+  owner = "data-team"
+
   tags = {
     environment = "example"
     team        = "data-engineering"
     cost-center = "infrastructure"
-    owner       = "data-team"
   }
 }
 

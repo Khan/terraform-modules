@@ -49,11 +49,12 @@ module "daily_health_check" {
     }
   ]
 
+  owner = "platform-team"
+
   tags = {
     environment = "example"
     team        = "platform"
     cost-center = "infrastructure"
-    owner       = "platform-team"
   }
 }
 
