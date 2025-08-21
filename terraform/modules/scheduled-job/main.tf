@@ -95,6 +95,11 @@ resource "google_secret_manager_secret_iam_member" "function_secret_access" {
   member    = "serviceAccount:${google_service_account.function_sa.email}"
 }
 
+# Local value that depends on all IAM bindings being created
+locals {
+  iam_bindings_ready = length(var.secrets) > 0 ? google_secret_manager_secret_iam_member.function_secret_access : {}
+}
+
 # The main Cloud Function (only created when execution_type is "function")
 resource "google_cloudfunctions2_function" "function" {
   count = var.execution_type == "function" ? 1 : 0
@@ -105,7 +110,7 @@ resource "google_cloudfunctions2_function" "function" {
   location    = var.region
 
   # Ensure IAM bindings are created before the function
-  depends_on = [google_secret_manager_secret_iam_member.function_secret_access]
+  depends_on = [local.iam_bindings_ready, google_service_account.function_sa]
 
   build_config {
     runtime     = var.runtime
@@ -167,7 +172,7 @@ resource "google_cloud_run_v2_job" "job" {
   deletion_protection = false
 
   # Ensure IAM bindings are created before the job
-  depends_on = [google_secret_manager_secret_iam_member.function_secret_access]
+  depends_on = [local.iam_bindings_ready, google_service_account.function_sa]
 
   lifecycle {
     precondition {
