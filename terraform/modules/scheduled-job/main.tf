@@ -160,6 +160,13 @@ resource "google_cloud_run_v2_job" "job" {
   name     = var.job_name
   location = var.region
 
+  lifecycle {
+    precondition {
+      condition     = var.job_image != null
+      error_message = "job_image is required when execution_type is 'job'."
+    }
+  }
+
   template {
     task_count  = var.job_task_count
     parallelism = var.job_parallelism
