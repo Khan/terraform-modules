@@ -256,6 +256,7 @@ resource "google_cloud_scheduler_job" "job_scheduler" {
 
     oauth_token {
       service_account_email = google_service_account.function_sa.email
+      scope                 = "https://www.googleapis.com/auth/cloud-platform"
     }
   }
 } 
