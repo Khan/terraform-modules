@@ -104,6 +104,9 @@ resource "google_cloudfunctions2_function" "function" {
   description = var.description
   location    = var.region
 
+  # Ensure service account is created before the function
+  depends_on = [google_service_account.function_sa]
+
   build_config {
     runtime     = var.runtime
     entry_point = var.entry_point
@@ -160,6 +163,12 @@ resource "google_cloud_run_v2_job" "job" {
   name     = var.job_name
   location = var.region
 
+  # Allow Terraform to manage the job lifecycle
+  deletion_protection = false
+
+  # Ensure service account is created before the job
+  depends_on = [google_service_account.function_sa]
+
   lifecycle {
     precondition {
       condition     = var.job_image != null
@@ -201,7 +210,7 @@ resource "google_cloud_run_v2_job" "job" {
             name = env.value.env_var_name
             value_source {
               secret_key_ref {
-                secret  = env.value.secret_id
+                secret  = "projects/${var.secrets_project_id}/secrets/${env.value.secret_id}"
                 version = env.value.version
               }
             }
