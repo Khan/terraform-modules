@@ -192,5 +192,9 @@ variable "job_args" {
 variable "job_image" {
   description = "Container image URL for the Cloud Run Job (e.g., 'gcr.io/project-id/job-name:latest')"
   type        = string
+  default     = null
+  validation {
+    condition = var.execution_type != "job" || var.job_image != null
+    error_message = "job_image is required when execution_type is 'job'."
+  }
 }
-
