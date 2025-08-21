@@ -192,5 +192,5 @@ variable "job_args" {
 variable "job_image" {
   description = "Container image URL for the Cloud Run Job (e.g., 'gcr.io/project-id/job-name:latest')"
   type        = string
+  default     = null
 }
-
