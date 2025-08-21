@@ -95,11 +95,6 @@ resource "google_secret_manager_secret_iam_member" "function_secret_access" {
   member    = "serviceAccount:${google_service_account.function_sa.email}"
 }
 
-# Local value that depends on all IAM bindings being created
-locals {
-  iam_bindings_ready = length(var.secrets) > 0 ? google_secret_manager_secret_iam_member.function_secret_access : {}
-}
-
 # The main Cloud Function (only created when execution_type is "function")
 resource "google_cloudfunctions2_function" "function" {
   count = var.execution_type == "function" ? 1 : 0
@@ -109,8 +104,8 @@ resource "google_cloudfunctions2_function" "function" {
   description = var.description
   location    = var.region
 
-  # Ensure IAM bindings are created before the function
-  depends_on = [local.iam_bindings_ready, google_service_account.function_sa]
+  # Ensure service account is created before the function
+  depends_on = [google_service_account.function_sa]
 
   build_config {
     runtime     = var.runtime
@@ -171,8 +166,8 @@ resource "google_cloud_run_v2_job" "job" {
   # Allow Terraform to manage the job lifecycle
   deletion_protection = false
 
-  # Ensure IAM bindings are created before the job
-  depends_on = [local.iam_bindings_ready, google_service_account.function_sa]
+  # Ensure service account is created before the job
+  depends_on = [google_service_account.function_sa]
 
   lifecycle {
     precondition {
@@ -215,7 +210,7 @@ resource "google_cloud_run_v2_job" "job" {
             name = env.value.env_var_name
             value_source {
               secret_key_ref {
-                secret  = env.value.secret_id
+                secret  = "projects/${var.secrets_project_id}/secrets/${env.value.secret_id}"
                 version = env.value.version
               }
             }
