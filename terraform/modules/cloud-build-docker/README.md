@@ -189,13 +189,10 @@ your-app-repo/
 - Terraform >= 1.3.0
 
 ### GCS Buckets
-The module automatically creates or imports the required GCS bucket:
+The module expects the required GCS bucket to exist:
 - `gs://{project_id}-cloudbuild-ci` - For build staging and logs
 
-**Behavior:**
-- **New deployments**: Creates the bucket with versioning and lifecycle policies
-- **Existing buckets**: Automatically imports existing buckets into Terraform state
-- **Bucket features**: Versioning enabled, 30-day cleanup policy for old builds
+**Note**: Cloud Build will automatically create this bucket if it doesn't exist, but for production use, you may want to create it explicitly with proper IAM permissions.
 
 ## Common Patterns
 

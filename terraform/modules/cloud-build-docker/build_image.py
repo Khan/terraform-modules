@@ -126,6 +126,7 @@ def build_image(
         script_dir = os.path.dirname(os.path.abspath(__file__))
         cloudbuild_config = os.path.join(script_dir, "cloudbuild.yml")
         
+        # TODO(jwbron): Consider adding automatic GCS bucket creation with import support for existing buckets in terraform
         run_command(
             [
                 "gcloud",
