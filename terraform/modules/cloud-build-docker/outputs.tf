@@ -29,3 +29,8 @@ output "project_id" {
   description = "Project ID where the image was built"
   value       = var.project_id
 }
+
+output "cloudbuild_bucket_name" {
+  description = "Name of the Cloud Build staging bucket"
+  value       = google_storage_bucket.cloudbuild_staging.name
+}

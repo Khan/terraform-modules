@@ -40,7 +40,7 @@ module "daily_data_processor" {
   # source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
   source = "../.."
 
-  job_name      = "daily-data-processor"
+  job_name           = "daily-data-processor"
   execution_type     = "job"
   project_id         = var.project_id
   secrets_project_id = var.secrets_project_id

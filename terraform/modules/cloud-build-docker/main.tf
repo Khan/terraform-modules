@@ -17,6 +17,23 @@ terraform {
   }
 }
 
+# Create the Cloud Build staging bucket
+resource "google_storage_bucket" "cloudbuild_staging" {
+  name     = "${var.project_id}-cloudbuild-ci"
+  location = "us-central1"
+  project  = var.project_id
+
+  # Enable versioning for build artifacts
+  versioning {
+    enabled = true
+  }
+
+  # Import existing bucket if it already exists
+  import {
+    id = "${var.project_id}-cloudbuild-ci"
+  }
+}
+
 # External data source to build images and return their digests
 data "external" "image_build" {
   program = ["${path.module}/build_image.py"]
@@ -34,7 +51,9 @@ data "external" "image_build" {
   depends_on = [
     var.context_path,
     var.dockerfile_path,
-    var.image_tag_suffix
+    var.image_tag_suffix,
+    var.project_id,
+    google_storage_bucket.cloudbuild_staging
   ]
 }
 

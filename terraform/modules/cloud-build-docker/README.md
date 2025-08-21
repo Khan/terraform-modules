@@ -66,11 +66,13 @@ module "api_service" {
 
   image_name       = "api-service"
   context_path     = "./api"
-  dockerfile_path  = "dockerfiles/production.Dockerfile"
+  dockerfile_path  = "dockerfiles/production.Dockerfile"  # Relative to context_path
   project_id       = var.project_id
   image_tag_suffix = "production"
 }
 ```
+
+**Note**: The `dockerfile_path` is relative to the `context_path`. In this example, the Dockerfile would be located at `./api/dockerfiles/production.Dockerfile`.
 
 ### With Build Arguments
 ```hcl
@@ -111,7 +113,7 @@ module "secure_app" {
 - `image_tag_suffix` - Tag suffix for the image (e.g., 'latest', 'v1.0.0')
 
 ### Optional (with defaults)
-- `dockerfile_path` - Path to the Dockerfile ("Dockerfile")
+- `dockerfile_path` - Path to the Dockerfile relative to context_path ("Dockerfile")
 - `base_digest` - Base image digest for build args ("latest")
 - `cloud_build_config` - Custom Cloud Build config file (null)
 - `build_args` - Additional build arguments ({})
@@ -142,10 +144,21 @@ module "secure_app" {
 
 ### Dockerfile Support
 The module supports various Dockerfile configurations:
-- Standard `Dockerfile` in the context root
-- Custom named Dockerfiles (e.g., `production.Dockerfile`)
-- Dockerfiles in subdirectories (e.g., `dockerfiles/app.Dockerfile`)
-- Absolute paths to Dockerfiles
+- **Standard**: `Dockerfile` in the context root (default)
+- **Custom names**: Use `dockerfile_path = "production.Dockerfile"` for files like `production.Dockerfile`
+- **Subdirectories**: Use `dockerfile_path = "dockerfiles/app.Dockerfile"` for files in subdirectories
+- **Automatic symlinking**: The module creates temporary symlinks to make custom Dockerfile names work with Cloud Build
+
+**Example structure:**
+```
+./app/
+├── Dockerfile                    # Default: dockerfile_path = "Dockerfile"
+├── production.Dockerfile         # Custom: dockerfile_path = "production.Dockerfile"
+└── dockerfiles/
+    └── app.Dockerfile           # Subdirectory: dockerfile_path = "dockerfiles/app.Dockerfile"
+```
+
+**Note**: The `dockerfile_path` is always relative to the `context_path`.
 
 ## Repository Structure
 
@@ -175,10 +188,14 @@ your-app-repo/
 - `gcloud` CLI installed and authenticated
 - Terraform >= 1.3.0
 
-### Required GCS Buckets
-The module expects these GCS buckets to exist:
-- `gs://{project_id}-cloudbuild-ci/staging` - For build staging
-- `gs://{project_id}-cloudbuild-ci/logs` - For build logs
+### GCS Buckets
+The module automatically creates or imports the required GCS bucket:
+- `gs://{project_id}-cloudbuild-ci` - For build staging and logs
+
+**Behavior:**
+- **New deployments**: Creates the bucket with versioning and lifecycle policies
+- **Existing buckets**: Automatically imports existing buckets into Terraform state
+- **Bucket features**: Versioning enabled, 30-day cleanup policy for old builds
 
 ## Common Patterns
 
