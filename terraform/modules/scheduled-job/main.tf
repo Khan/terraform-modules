@@ -17,6 +17,15 @@ terraform {
   }
 }
 
+# Common tags for all resources
+locals {
+  common_tags = merge(var.tags, {
+    "terraform_module"    = "scheduled-job"
+    "scheduled_job_name"  = var.job_name
+    "owner"              = var.owner
+  })
+}
+
 # Service account for the Cloud Function/Job
 resource "google_service_account" "function_sa" {
   project      = var.project_id
@@ -34,6 +43,8 @@ resource "google_storage_bucket" "function_bucket" {
   location                    = var.region
   uniform_bucket_level_access = true
   force_destroy               = true
+
+  labels = local.common_tags
 }
 
 # Create function source archive (only for Cloud Functions)
@@ -57,6 +68,8 @@ resource "google_storage_bucket_object" "function_archive" {
   name   = "${var.job_name}-function-${data.archive_file.function_archive[0].output_sha}.zip"
   bucket = google_storage_bucket.function_bucket[0].name
   source = data.archive_file.function_archive[0].output_path
+
+  metadata = local.common_tags
 }
 
 # PubSub topic for triggering the Cloud Function (only created when execution_type is "function")
@@ -65,6 +78,8 @@ resource "google_pubsub_topic" "function_topic" {
 
   project = var.project_id
   name    = "${var.job_name}-topic"
+
+  labels = local.common_tags
 }
 
 # Cloud Scheduler job for Cloud Function (only created when execution_type is "function")
@@ -103,6 +118,8 @@ resource "google_cloudfunctions2_function" "function" {
   name        = var.job_name
   description = var.description
   location    = var.region
+
+  labels = local.common_tags
 
   build_config {
     runtime     = var.runtime
@@ -159,6 +176,7 @@ resource "google_cloud_run_v2_job" "job" {
   project  = var.project_id
   name     = var.job_name
   location = var.region
+  labels = local.common_tags
 
   lifecycle {
     precondition {

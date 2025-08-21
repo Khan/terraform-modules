@@ -221,6 +221,7 @@ module "data_processor" {
 - `main_file` - Python file name (e.g., "main.py"), relative to `source_dir`.
 - `schedule` - Cron expression (e.g., "0 9 * * 1-5")
 - `description` - Function/job description
+- `owner` - The owner/team responsible for this scheduled job
 
 ### Optional (with defaults)
 - `execution_type` - "function" or "job" ("function")
@@ -230,6 +231,7 @@ module "data_processor" {
 - `timeout_seconds` - Timeout for functions (60)
 - `environment_variables` - Environment vars ({})
 - `secrets` - Secret Manager secrets ([])
+- `tags` - A map of tags to assign to all resources ({})
 
 ### Cloud Run Job specific (when `execution_type = "job"`)
 - `job_cpu` - CPU allocation (e.g., "1000m", "2") ("1000m")
@@ -388,6 +390,42 @@ Or use Cloud Build directly:
 ```bash
 gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest ./jobs/your-job
 ```
+
+## Resource Tagging
+
+All resources created by this module are automatically tagged with common metadata:
+
+### Automatic Tags
+- `terraform_module` - Set to "scheduled-job"
+- `scheduled_job_name` - The name of your function/job
+- `owner` - The owner/team responsible for this scheduled job
+
+### Custom Tags
+You can add custom tags using the `tags` variable:
+
+```hcl
+module "my_function" {
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
+  
+  job_name = "my-function"
+  # ... other configuration
+  
+  tags = {
+    "environment" = "production"
+    "team"        = "data-engineering"
+    "cost-center" = "infrastructure"
+    "owner"       = "data-team"
+  }
+}
+```
+
+### Supported Resources
+The following resources support tagging/labeling:
+- **Storage Buckets** - Labels applied
+- **Storage Objects** - Metadata applied
+- **PubSub Topics** - Labels applied
+- **Cloud Functions** - Labels applied
+- **Cloud Run Jobs** - Labels applied
 
 ## Common Cron Patterns
 

@@ -194,3 +194,14 @@ variable "job_image" {
   type        = string
   default     = null
 }
+
+variable "tags" {
+  description = "A map of tags to assign to all resources created by this module"
+  type        = map(string)
+  default     = {}
+}
+
+variable "owner" {
+  description = "The owner/team responsible for this scheduled job"
+  type        = string
+}

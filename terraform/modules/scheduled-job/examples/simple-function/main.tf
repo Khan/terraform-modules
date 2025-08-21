@@ -48,6 +48,13 @@ module "daily_health_check" {
       version      = "latest"
     }
   ]
+
+  tags = {
+    environment = "example"
+    team        = "platform"
+    cost-center = "infrastructure"
+    owner       = "platform-team"
+  }
 }
 
 # Output the function details

@@ -32,6 +32,13 @@ module "daily_data_processor_image" {
   context_path     = "./job-code"
   project_id       = var.project_id
   image_tag_suffix = "latest"
+
+  tags = {
+    environment = "example"
+    team        = "data-engineering"
+    cost-center = "infrastructure"
+    owner       = "data-team"
+  }
 }
 
 # Simple daily job example
@@ -69,6 +76,13 @@ module "daily_data_processor" {
       version      = "latest"
     }
   ]
+
+  tags = {
+    environment = "example"
+    team        = "data-engineering"
+    cost-center = "infrastructure"
+    owner       = "data-team"
+  }
 }
 
 # Output the job details
