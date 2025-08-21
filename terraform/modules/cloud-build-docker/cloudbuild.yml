@@ -1,0 +1,36 @@
+# Cloud Build configuration with branch-based caching.
+# Uses branch name as cache tag for optimal layer reuse.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Pull previous image
+    entrypoint: bash
+    args: ['-c', 'docker pull "$_IMAGE_NAME:$_CACHE_TAG" || true']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Build image
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if docker image inspect "$_IMAGE_NAME:$_CACHE_TAG" > /dev/null 2>&1; then
+          echo "Using cache from $_IMAGE_NAME:$_CACHE_TAG"
+          docker build --tag="$_IMAGE_TAG" --cache-from="$_IMAGE_NAME:$_CACHE_TAG" --build-arg BASE_IMAGE="$_BASE_DIGEST" .
+        else
+          echo "No cache found, building without --cache-from"
+          docker build --tag="$_IMAGE_TAG" --build-arg BASE_IMAGE="$_BASE_DIGEST" .
+        fi
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Tag cache
+    entrypoint: bash
+    args: ['-c', 'docker tag "$_IMAGE_TAG" "$_IMAGE_NAME:$_CACHE_TAG"']
+    waitFor: ['Build image']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Push cache
+    entrypoint: bash
+    args: ['-c', 'docker push "$_IMAGE_NAME:$_CACHE_TAG"']
+    waitFor: ['Tag cache']
+
+images:
+  - '$_IMAGE_TAG'
