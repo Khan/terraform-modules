@@ -18,12 +18,11 @@ terraform {
 }
 
 
-# Null resource to track context changes and trigger rebuilds
-resource "null_resource" "context_hash" {
-  triggers = {
-    dockerfile_hash = filebase64sha256("${var.context_path}/${var.dockerfile_path}")
-    context_files_hash = sha256(join(",", [for f in fileset(var.context_path, "**") : filebase64sha256("${var.context_path}/${f}")]))
-  }
+# Local values for tracking context changes
+locals {
+  dockerfile_hash = filebase64sha256("${var.context_path}/${var.dockerfile_path}")
+  context_files_hash = sha256(join(",", [for f in fileset(var.context_path, "**") : filebase64sha256("${var.context_path}/${f}")]))
+  context_hash = "${local.dockerfile_hash}-${local.context_files_hash}"
 }
 
 # External data source to build images and return their digests
@@ -45,7 +44,7 @@ data "external" "image_build" {
     var.dockerfile_path,
     var.image_tag_suffix,
     var.project_id,
-    null_resource.context_hash
+    local.context_hash
   ]
 }
 
