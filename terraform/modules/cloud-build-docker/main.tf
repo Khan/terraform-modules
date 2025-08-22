@@ -22,7 +22,7 @@ terraform {
 resource "null_resource" "context_hash" {
   triggers = {
     dockerfile_hash = filebase64sha256("${var.context_path}/${var.dockerfile_path}")
-    context_files = join(",", [for f in fileset(var.context_path, "**") : filebase64sha256("${var.context_path}/${f}")])
+    context_files_hash = sha256(join(",", [for f in fileset(var.context_path, "**") : filebase64sha256("${var.context_path}/${f}")]))
   }
 }
 
