@@ -79,7 +79,13 @@ def check_cache_tag_exists(image_uri, cache_tag, project_id):
 
 
 def get_effective_cache_tag(image_uri, image_tag_suffix, project_id):
-    """Determine the effective cache tag, falling back to 'latest' if the provided tag doesn't exist."""
+    """Determine the effective cache tag.
+    
+    Ideally, the cache tag we use is the requested tag, `image_tag_suffix`.
+    But if that doesn't exist, we fall back to 'latest'. In that case, we may 
+    still be able to reuse some or all layers, depending on where changes were 
+    made in the branch running this build.
+    """
     # First check if the provided cache tag exists
     if check_cache_tag_exists(image_uri, image_tag_suffix, project_id):
         print(f"Using cache tag: {image_tag_suffix}", file=sys.stderr)

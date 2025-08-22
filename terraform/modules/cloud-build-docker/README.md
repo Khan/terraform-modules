@@ -6,7 +6,7 @@ A reusable Terraform module for building Docker images using Google Cloud Build 
 
 - **Cloud Build Integration**: Uses Google Cloud Build for reliable, scalable Docker image building
 - **Branch-based Caching**: Optimizes build times by caching layers based on branch names
-- **Cache Fallback**: Automatically falls back to "latest" tag if the specified cache tag doesn't exist
+- **Cache Fallback**: Automatically falls back to "latest" tag if the specified cache tag doesn't exist, ensuring we always have some level of caching
 - **Digest Tracking**: Returns full image digests for precise versioning in Terraform
 - **Flexible Dockerfile Support**: Supports custom Dockerfile names and locations
 - **Build Arguments**: Supports custom build arguments and base image digests
@@ -141,7 +141,7 @@ module "secure_app" {
 
 ### Caching Strategy
 - **Branch-based**: Uses the `image_tag_suffix` as a cache tag
-- **Fallback to Latest**: If the specified cache tag doesn't exist, falls back to using "latest" as the cache tag
+- **Fallback to Latest**: If the specified cache tag doesn't exist, falls back to using "latest" as the cache tag, ensuring we always have some level of caching
 - **Layer Reuse**: Subsequent builds reuse cached layers when possible
 - **Cache Invalidation**: Cache is automatically invalidated when Dockerfile or context changes
 
