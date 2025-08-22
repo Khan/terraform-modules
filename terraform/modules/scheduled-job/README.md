@@ -231,7 +231,7 @@ module "data_processor" {
 - `timeout_seconds` - Timeout for functions (60)
 - `environment_variables` - Environment vars ({})
 - `secrets` - Secret Manager secrets ([])
-- `tags` - A map of tags to assign to all resources ({})
+- `tags` - A map of tag->tag-value to assign to all resources ({})
 
 ### Cloud Run Job specific (when `execution_type = "job"`)
 - `job_cpu` - CPU allocation (e.g., "1000m", "2") ("1000m")
