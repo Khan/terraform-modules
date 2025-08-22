@@ -1,5 +1,5 @@
 # Cloud Build configuration with branch-based caching.
-# Enables caching by pulling the previous image with a given "cache tag", if it exists, and reusing its layers.
+# Enables caching by pulling the previous image with a given "cache tag", if it exists, which allows docker to reuse layers.
 steps:
   - name: 'gcr.io/cloud-builders/docker'
     id: Pull previous image
@@ -16,13 +16,8 @@ steps:
     args:
       - -c
       - |
-        if docker image inspect "$_IMAGE_NAME:$_CACHE_TAG" > /dev/null 2>&1; then
-          echo "Using cache from $_IMAGE_NAME:$_CACHE_TAG"
-          docker build --tag="$_IMAGE_TAG" --cache-from="$_IMAGE_NAME:$_CACHE_TAG" --build-arg BASE_IMAGE="$_BASE_DIGEST" .
-        else
-          echo "No cache found for $_IMAGE_NAME:$_CACHE_TAG, building without --cache-from"
-          docker build --tag="$_IMAGE_TAG" --build-arg BASE_IMAGE="$_BASE_DIGEST" .
-        fi
+        echo "Building image"
+        docker build --tag="$_IMAGE_TAG" --build-arg BASE_IMAGE="$_BASE_DIGEST" .
 
   - name: 'gcr.io/cloud-builders/docker'
     id: Tag cache

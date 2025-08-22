@@ -17,12 +17,6 @@ terraform {
   }
 }
 
-
-# Data source to track context changes
-data "external" "context_hash" {
-  program = ["bash", "-c", "cd ${var.context_path} && find . -type f -exec sha256sum {} \\; | sort | sha256sum | awk '{print \"{\\\"hash\\\": \\\"\" $1 \"\\\"}\"}'"]
-}
-
 # External data source to build images and return their digests
 data "external" "image_build" {
   program = ["${path.module}/build_image.py"]
@@ -36,13 +30,12 @@ data "external" "image_build" {
     base_digest      = var.base_digest
   }
 
-  # Trigger rebuild when any of these change, including Dockerfile and context files
+  # Trigger rebuild when any of these change
   depends_on = [
     var.context_path,
     var.dockerfile_path,
     var.image_tag_suffix,
-    var.project_id,
-    data.external.context_hash
+    var.project_id
   ]
 }
 
