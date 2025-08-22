@@ -17,6 +17,15 @@ terraform {
   }
 }
 
+
+# Null resource to track context changes and trigger rebuilds
+resource "null_resource" "context_hash" {
+  triggers = {
+    dockerfile_hash = filebase64sha256("${var.context_path}/${var.dockerfile_path}")
+    context_files = join(",", [for f in fileset(var.context_path, "**") : filebase64sha256("${var.context_path}/${f}")])
+  }
+}
+
 # External data source to build images and return their digests
 data "external" "image_build" {
   program = ["${path.module}/build_image.py"]
@@ -30,12 +39,13 @@ data "external" "image_build" {
     base_digest      = var.base_digest
   }
 
-  # Trigger rebuild when any of these change
+  # Trigger rebuild when any of these change, including Dockerfile and context files
   depends_on = [
     var.context_path,
     var.dockerfile_path,
     var.image_tag_suffix,
-    var.project_id
+    var.project_id,
+    null_resource.context_hash
   ]
 }
 
