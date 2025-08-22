@@ -54,6 +54,48 @@ def get_image_digest(image_uri, tag, project_id):
         return None
 
 
+def check_cache_tag_exists(image_uri, cache_tag, project_id):
+    """Check if a cache tag exists for the given image."""
+    try:
+        result = run_command(
+            [
+                "gcloud",
+                "container",
+                "images",
+                "list-tags",
+                image_uri,
+                "--filter",
+                f"tags:{cache_tag}",
+                "--limit",
+                "1",
+                "--format=get(digest)",
+                "--project",
+                project_id,
+            ]
+        )
+        return bool(result.stdout.strip())
+    except subprocess.CalledProcessError:
+        return False
+
+
+def get_effective_cache_tag(image_uri, image_tag_suffix, project_id):
+    """Determine the effective cache tag.
+    
+    Ideally, the cache tag we use is the requested tag, `image_tag_suffix`.
+    But if that doesn't exist, we fall back to 'latest'. In that case, we may 
+    still be able to reuse some or all layers, depending on where changes were 
+    made in the branch running this build.
+    """
+    # First check if the provided cache tag exists
+    if check_cache_tag_exists(image_uri, image_tag_suffix, project_id):
+        print(f"Using cache tag: {image_tag_suffix}", file=sys.stderr)
+        return image_tag_suffix
+    
+    # Fall back to 'latest' if the provided tag doesn't exist
+    print(f"Cache tag '{image_tag_suffix}' not found, falling back to 'latest'", file=sys.stderr)
+    return "latest"
+
+
 def build_image(
     image_name,
     context_path,
@@ -69,6 +111,9 @@ def build_image(
     image_tag = f"{image_uri}:{image_tag_suffix}"
 
     print(f"Building image: {image_name} with tag: {image_tag_suffix}", file=sys.stderr)
+
+    # Determine the effective cache tag
+    effective_cache_tag = get_effective_cache_tag(image_uri, image_tag_suffix, project_id)
 
     # Handle Dockerfile symlink if needed
     # The symlinking logic allows using Dockerfiles with:
@@ -117,7 +162,7 @@ def build_image(
             "_IMAGE_NAME": image_uri,
             "_IMAGE_TAG": image_tag,
             "_BASE_DIGEST": base_digest,
-            "_CACHE_TAG": image_tag_suffix,  # Use branch name for caching
+            "_CACHE_TAG": effective_cache_tag,  # Use effective cache tag (with fallback to latest)
         }
         subs_str = ",".join(f"{k}={v}" for k, v in substitutions.items())
 

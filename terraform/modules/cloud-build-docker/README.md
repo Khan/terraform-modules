@@ -6,6 +6,7 @@ A reusable Terraform module for building Docker images using Google Cloud Build 
 
 - **Cloud Build Integration**: Uses Google Cloud Build for reliable, scalable Docker image building
 - **Branch-based Caching**: Optimizes build times by caching layers based on branch names
+- **Cache Fallback**: Automatically falls back to "latest" tag if the specified cache tag doesn't exist, ensuring we always have some level of caching
 - **Digest Tracking**: Returns full image digests for precise versioning in Terraform
 - **Flexible Dockerfile Support**: Supports custom Dockerfile names and locations
 - **Build Arguments**: Supports custom build arguments and base image digests
@@ -132,13 +133,15 @@ module "secure_app" {
 
 ### Build Process
 1. **Context Preparation**: The module prepares the build context and handles Dockerfile symlinks if needed
-2. **Cloud Build Submission**: Submits the build to Google Cloud Build with appropriate substitutions
-3. **Caching**: Uses branch-based caching to optimize build times
-4. **Digest Retrieval**: Queries the built image to get its full digest
-5. **Output**: Returns the digest for use in other Terraform resources
+2. **Cache Tag Resolution**: Determines the effective cache tag by checking if the specified tag exists, falling back to "latest" if not
+3. **Cloud Build Submission**: Submits the build to Google Cloud Build with appropriate substitutions
+4. **Caching**: Uses the effective cache tag for layer caching to optimize build times
+5. **Digest Retrieval**: Queries the built image to get its full digest
+6. **Output**: Returns the digest for use in other Terraform resources
 
 ### Caching Strategy
 - **Branch-based**: Uses the `image_tag_suffix` as a cache tag
+- **Fallback to Latest**: If the specified cache tag doesn't exist, falls back to using "latest" as the cache tag, ensuring we always have some level of caching
 - **Layer Reuse**: Subsequent builds reuse cached layers when possible
 - **Cache Invalidation**: Cache is automatically invalidated when Dockerfile or context changes
 
@@ -265,3 +268,4 @@ resource "google_cloud_run_v2_service" "app" {
 - Clear cache by using a unique `image_tag_suffix`
 - Check if base images are accessible
 - Verify network connectivity during builds
+- **Cache Fallback**: If you see "falling back to 'latest'" in logs, the specified cache tag doesn't exist and the module is using "latest" instead
