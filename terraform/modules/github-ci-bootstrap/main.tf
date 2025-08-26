@@ -120,20 +120,12 @@ resource "google_storage_bucket_iam_member" "ci_storage_legacy_bucket_owner" {
 
 # === SECRET MANAGER ===
 
-# Allow reading secret metadata (needed for data.google_secret_manager_secret_version)
-resource "google_project_iam_member" "ci_secretmanager_viewer" {
-  count   = length(var.secret_ids) > 0 ? 1 : 0
-  project = var.secrets_project_id
-  role    = "roles/secretmanager.viewer"
-  member  = "serviceAccount:${google_service_account.github_ci.email}"
-}
-
-# Dynamic secret access based on provided secret IDs
-resource "google_secret_manager_secret_iam_member" "ci_secret_access" {
+# Dynamic secret admin access based on provided secret IDs
+resource "google_secret_manager_secret_iam_member" "ci_secret_admin" {
   for_each  = toset(var.secret_ids)
   project   = var.secrets_project_id
   secret_id = each.value
-  role      = "roles/secretmanager.secretAccessor"
+  role      = "roles/secretmanager.admin"
   member    = "serviceAccount:${google_service_account.github_ci.email}"
 }
 
