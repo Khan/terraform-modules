@@ -5,8 +5,9 @@ A reusable Terraform module for scheduled Google Cloud Functions and Cloud Run J
 ## Features
 
 Creates a complete scheduled setup:
+
 - **Cloud Function (2nd gen)** OR **Cloud Run Job** with configurable runtime
-- Cloud Scheduler with cron-based scheduling  
+- Cloud Scheduler with cron-based scheduling
 - PubSub topic for reliable triggering (Cloud Functions only)
 - Service account with least-privilege permissions
 - Storage bucket with lifecycle management
@@ -16,6 +17,7 @@ Creates a complete scheduled setup:
 ## Quick Start
 
 ### Cloud Function Example
+
 ```hcl
 module "my_daily_task" {
   source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
@@ -44,6 +46,7 @@ module "my_daily_task" {
 ```
 
 ### Cloud Run Job Example
+
 ```hcl
 # Build the container image using Cloud Build
 module "data_processor_image" {
@@ -96,6 +99,7 @@ Complete working examples are available in the [`examples/`](./examples/) direct
 - **[`simple-job/`](./examples/simple-job/)** - Basic scheduled Cloud Run Job with minimal configuration
 
 Each example includes:
+
 - Complete Terraform configuration
 - Sample code with `requirements.txt`
 - Documentation on how to deploy and test
@@ -103,6 +107,7 @@ Each example includes:
 ## Cloud Functions vs Cloud Run Jobs
 
 ### When to use Cloud Functions (`execution_type = "function"`)
+
 - **Short-running tasks** (up to 60 minutes)
 - **Event-driven workloads** (PubSub, HTTP, etc.)
 - **Serverless scaling** (0 to many instances)
@@ -110,6 +115,7 @@ Each example includes:
 - **Cost-effective for sporadic workloads**
 
 ### When to use Cloud Run Jobs (`execution_type = "job"`)
+
 - **Long-running batch processes** (up to 24 hours)
 - **Resource-intensive workloads** (high CPU/memory)
 - **Scheduled batch jobs** (ETL, data processing, reports)
@@ -119,13 +125,13 @@ Each example includes:
 
 ### Key Differences
 
-| Feature | Cloud Functions | Cloud Run Jobs |
-|---------|----------------|----------------|
-| **Max Runtime** | 60 minutes | 24 hours |
-| **Triggering** | PubSub, HTTP, etc. | HTTP API calls |
-| **Scaling** | Auto-scaling | Manual execution |
-| **Resources** | Limited CPU/memory | Configurable CPU/memory |
-| **Container** | Runtime-based | Custom container images |
+| Feature         | Cloud Functions    | Cloud Run Jobs           |
+| --------------- | ------------------ | ------------------------ |
+| **Max Runtime** | 60 minutes         | 24 hours                 |
+| **Triggering**  | PubSub, HTTP, etc. | HTTP API calls           |
+| **Scaling**     | Auto-scaling       | Manual execution         |
+| **Resources**   | Limited CPU/memory | Configurable CPU/memory  |
+| **Container**   | Runtime-based      | Custom container images  |
 | **Parallelism** | Multiple instances | Configurable parallelism |
 
 ### Cost Considerations
@@ -137,6 +143,7 @@ Each example includes:
 ## Cross-Repository Usage
 
 ### Use Everywhere
+
 ```hcl
 # Production: Pin to specific version
 module "backup" {
@@ -154,6 +161,7 @@ module "test_function" {
 ## Usage Examples
 
 ### Multiple Functions
+
 ```hcl
 module "daily_backup" {
   source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
@@ -178,6 +186,7 @@ module "weekly_reports" {
 ```
 
 ### Advanced Configuration
+
 ```hcl
 module "data_processor" {
   source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
@@ -214,6 +223,7 @@ module "data_processor" {
 ## Requirements & Inputs
 
 ### Required
+
 - `job_name` - Unique name for your function or job
 - `project_id` - GCP project for resources
 - `secrets_project_id` - GCP project containing secrets
@@ -223,6 +233,7 @@ module "data_processor" {
 - `description` - Function/job description
 
 ### Optional (with defaults)
+
 - `execution_type` - "function" or "job" ("function")
 - `region` - GCP region ("us-central1")
 - `runtime` - Function runtime ("python311")
@@ -232,6 +243,7 @@ module "data_processor" {
 - `secrets` - Secret Manager secrets ([])
 
 ### Cloud Run Job specific (when `execution_type = "job"`)
+
 - `job_cpu` - CPU allocation (e.g., "1000m", "2") ("1000m")
 - `job_memory` - Memory allocation (e.g., "512Mi", "2Gi") ("512Mi")
 - `job_timeout` - Timeout duration (e.g., "3600s", "1h", "2h30m") ("3600s")
@@ -370,12 +382,14 @@ module "my_scheduled_job" {
 ```
 
 **Benefits of using the cloud-build-docker module:**
+
 - **Automatic building**: No manual Docker commands needed
 - **Branch-based caching**: Faster builds with layer caching
 - **Digest tracking**: Precise image versioning in Terraform
 - **Consistent builds**: Same build process across environments
 
 **Alternative manual approach:**
+
 ```bash
 # Build the image
 docker build -t gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest ./jobs/your-job
@@ -385,16 +399,17 @@ docker push gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest
 ```
 
 Or use Cloud Build directly:
+
 ```bash
 gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest ./jobs/your-job
 ```
 
 ## Common Cron Patterns
 
-| Schedule | Description |
-|----------|-------------|
-| `"0 9 * * 1-5"` | 9 AM weekdays |
-| `"0 */6 * * *"` | Every 6 hours |
-| `"0 2 * * *"` | 2 AM daily |
-| `"0 9 * * 1"` | Monday 9 AM |
+| Schedule         | Description      |
+| ---------------- | ---------------- |
+| `"0 9 * * 1-5"`  | 9 AM weekdays    |
+| `"0 */6 * * *"`  | Every 6 hours    |
+| `"0 2 * * *"`    | 2 AM daily       |
+| `"0 9 * * 1"`    | Monday 9 AM      |
 | `"*/15 * * * *"` | Every 15 minutes |

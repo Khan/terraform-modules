@@ -11,11 +11,13 @@ This example demonstrates the basic usage of the Cloud Build Docker module to bu
 ## Usage
 
 1. Set your project variables:
+
    ```bash
    export TF_VAR_project_id="your-gcp-project"
    ```
 
 2. Initialize and apply:
+
    ```bash
    terraform init
    terraform plan
@@ -63,6 +65,7 @@ image_info = {
 ## Next Steps
 
 You can use the `image_digest` output to deploy the image to:
+
 - Cloud Run
 - GKE
 - Compute Engine

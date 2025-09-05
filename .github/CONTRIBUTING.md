@@ -13,7 +13,7 @@ Releases are created manually using the **Manual Release** GitHub Action:
 
 1. Go to Actions → Manual Release
 2. Select the module name (e.g., `scheduled-function`)
-3. Enter version number (e.g., `1.0.0`) 
+3. Enter version number (e.g., `1.0.0`)
 4. Add optional release notes in the text field
 5. Run the workflow
 
