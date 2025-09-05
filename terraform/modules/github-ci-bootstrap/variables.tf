@@ -41,6 +41,13 @@ variable "target_projects" {
   }
 }
 
+
+variable "write_branch_patterns" {
+  description = "List of branch patterns that are allowed to use the read/write service account (defaults to main and master)"
+  type        = list(string)
+  default     = ["main", "master"]
+}
+
 variable "terraform_state_bucket" {
   description = "GCS bucket name for storing Terraform state (defaults to terraform-{org}-{repo}-{service})"
   type        = string

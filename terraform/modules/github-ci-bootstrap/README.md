@@ -15,6 +15,7 @@ Each module invocation creates a dedicated service account for a complete Terraf
 
 - **Shared Infrastructure**: Uses a single Workload Identity Pool in khan-internal-services for all GitHub Terraform CI
 - **Dedicated Service Accounts**: Creates unique service accounts for each Terraform configuration managed in CI
+- **Dual Service Account Support**: Always creates separate service accounts for write-enabled branches (full access) and read-only access (available to any branch)
 - **Workload Identity Federation**: Uses modern, keyless authentication for GitHub Actions
 - **Cross-Project Support**: Service accounts can deploy Terraform resources across multiple GCP projects
 - **Least Privilege**: Only grants permissions for specified GCP services in target projects
@@ -22,6 +23,7 @@ Each module invocation creates a dedicated service account for a complete Terraf
 - **Secret Management**: Optional access to Google Secret Manager secrets needed by Terraform
 - **Configurable Services**: Enable only the GCP services your Terraform configuration manages
 - **Repository Scoped**: Restricts access to a specific GitHub repository containing Terraform code
+- **Branch-Based Access Control**: Different permission levels based on GitHub branch patterns
 
 ## Architecture
 
@@ -41,6 +43,9 @@ module "culture_cron_terraform_ci" {
   # Terraform configuration managed in CI
   service_name      = "culture-cron-prod"        # YOU choose this name: project + environment
   github_repository = "Khan/culture-cron"        # GitHub repo containing the Terraform code
+  
+  # Configure which branches can use the write-enabled service account (defaults to main and master)
+  write_branch_patterns = ["main", "master"]
   
   # Target projects where this Terraform configuration deploys resources via CI
   target_projects = {
@@ -66,6 +71,7 @@ module "culture_cron_terraform_ci" {
 | `service_name` | User-defined unique identifier for this Terraform configuration and environment (e.g., 'culture-cron-prod', 'webapp-staging') | `string` | n/a | yes |
 | `github_repository` | GitHub repository containing the Terraform configuration in format 'org/repo' | `string` | n/a | yes |
 | `target_projects` | Map of GCP projects where this Terraform configuration will deploy resources. Keys are project IDs. | `map(object)` | `{}` | no |
+| `write_branch_patterns` | List of branch patterns that are allowed to use the read/write service account (defaults to main and master) | `list(string)` | `["main", "master"]` | no |
 | `terraform_state_bucket` | GCS bucket name for storing Terraform state for this configuration | `string` | `terraform-{org}-{repo}-{service}` | no |
 | `secrets_project_id` | Project ID where secrets needed by the Terraform configuration are stored | `string` | `"khan-academy"` | no |
 | `secret_ids` | List of secret IDs that the Terraform configuration needs access to | `list(string)` | `[]` | no |
@@ -107,6 +113,48 @@ If `terraform_state_bucket` is not specified, the module automatically generates
 - **Example**: `Khan/Mobile_App` + `mobile_app_prod` → `terraform-khan-mobile-app-mobile-app-prod`
 
 This ensures each Terraform setup gets its own isolated state bucket while maintaining consistent, predictable naming that complies with GCS bucket naming requirements.
+
+### Dual Service Account Configuration
+
+The module always creates two service accounts with different permission levels:
+
+#### Write-Enabled Branch Service Account (Full Access)
+- **Service Account Name**: `{service_name}-ci`
+- **Permissions**: Full admin permissions for all specified services
+- **Access**: Can create, modify, and delete resources
+- **Branch Restriction**: Only works on branches specified in `write_branch_patterns` (defaults to `main` and `master`)
+- **Use Case**: Production deployments and infrastructure changes
+
+#### Read-Only Service Account (Read-Only + Cloud Build)
+- **Service Account Name**: `{service_name}-ci-pr`
+- **Permissions**: Read-only permissions for most services, full access to Cloud Build
+- **Access**: Can read resources and run builds, but cannot modify infrastructure
+- **Branch Restriction**: Works on any branch in the repository (safe to use anywhere)
+- **Use Case**: PR validation, testing, and plan operations
+- **Notw**: The one read/write role this service account has is for cloud build. As long as docker images are being referenced with image digests, this cannot affect prod. If tags are used, PR branches can push images to those tags and affect prod deplpoyments.
+
+#### Permission Differences
+
+| Service | Write-Enabled Branches | Read-Only Service Account |
+|---------|----------------------|---------------------------|
+| Cloud Functions | `roles/cloudfunctions.admin` | `roles/cloudfunctions.viewer` |
+| Storage | `roles/storage.admin` | `roles/storage.objectViewer` |
+| Pub/Sub | `roles/pubsub.admin` | `roles/pubsub.viewer` |
+| Scheduler | `roles/cloudscheduler.admin` | `roles/cloudscheduler.viewer` |
+| Cloud Run | `roles/run.admin` | `roles/run.viewer` |
+| Cloud Build | `roles/cloudbuild.builds.builder` | `roles/cloudbuild.builds.builder` |
+| Secret Manager | `roles/secretmanager.admin` | `roles/secretmanager.secretAccessor` |
+| Terraform State | `roles/storage.objectAdmin` | `roles/storage.objectViewer` |
+
+#### Branch Pattern Configuration
+
+The `write_branch_patterns` variable accepts exact branch names:
+- `main` - Matches the main branch
+- `master` - Matches the master branch
+- `production` - Matches a production branch
+- `staging` - Matches a staging branch
+
+**Note**: The read-only service account can be used by any branch in the repository since it's inherently safe (cannot make infrastructure changes). Only branches specified in `write_branch_patterns` can use the write-enabled service account for deployments.
 
 ### Service Name Guidelines
 
@@ -160,15 +208,18 @@ Each `service_name` gets its own isolated:
 
 | Name | Description |
 |------|-------------|
-| `service_account_email` | Email of the created service account |
-| `workload_identity_provider` | Full resource name of the Workload Identity provider |
+| `service_account_email_rw` | Email of the created service account (write-enabled branches) |
+| `service_account_email_ro` | Email of the created service account (read-only, available to any branch) |
+| `workload_identity_provider_rw` | Full resource name of the Workload Identity provider (write-enabled branches) |
+| `workload_identity_provider_ro` | Full resource name of the Workload Identity provider (read-only, available to any branch) |
 | `terraform_state_bucket` | The GCS bucket name used for Terraform state (computed or provided) |
 | `service_name` | The unique identifier for this Terraform configuration and environment |
 | `target_projects` | Map of target projects configured |
+| `write_branch_patterns` | List of branch patterns that are allowed to use the read/write service account |
 
 ## GitHub Actions Configuration
 
-After applying this module, configure your GitHub Actions workflow to manage Terraform in CI:
+After applying this module, configure your GitHub Actions workflow to manage Terraform in CI. The module creates two service accounts, so you need to conditionally use different service accounts based on the branch. Note, in these examples the `outputs.xyz` vars should be replaced directly with the output values:
 
 ```yaml
 permissions:
@@ -181,14 +232,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Authenticate to Google Cloud
+      - name: Authenticate to Google Cloud (Write-Enabled Branches)
+        if: contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref)
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ outputs.workload_identity_provider }}
-          service_account: ${{ outputs.service_account_email }}
+          workload_identity_provider: ${{ outputs.workload_identity_provider_rw }}
+          service_account: ${{ outputs.service_account_email_rw }}
+          
+      - name: Authenticate to Google Cloud (Read-Only)
+        if: !contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ outputs.workload_identity_provider_ro }}
+          service_account: ${{ outputs.service_account_email_ro }}
           
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+```
+
+### Conditional Terraform Operations
+
+With dual service accounts, you can also conditionally run different Terraform operations:
+
+```yaml
+      - name: Terraform Plan (All Branches)
+        run: terraform plan
+        
+      - name: Terraform Apply (Write-Enabled Branches Only)
+        if: contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref)
+        run: terraform apply -auto-approve
 ```
 
 ## Security Features
@@ -307,5 +379,33 @@ module "webapp_prod_ci" {
   }
   
   # Terraform state bucket defaults to: terraform-khan-webapp-webapp-prod
+}
+```
+
+### Terraform Configuration with Dual Service Accounts
+```hcl
+# CI for API production Terraform configuration with separate service accounts for main and PR branches
+module "api_prod_ci" {
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/github-ci-bootstrap?ref=v1.0.0"
+
+  service_name      = "api-prod"
+  github_repository = "Khan/api"
+  
+  # Configure which branches can use the write-enabled service account
+  write_branch_patterns = ["main", "master"]
+  
+  target_projects = {
+    "khan-academy" = {
+      required_services = ["cloudfunctions", "storage", "pubsub", "cloudbuild"]
+    }
+  }
+  
+  # Secrets that both service accounts need access to
+  secret_ids = [
+    "projects/khan-academy/secrets/api-key",
+    "projects/khan-academy/secrets/database-url"
+  ]
+  
+  # Terraform state bucket defaults to: terraform-khan-api-api-prod
 }
 ```
