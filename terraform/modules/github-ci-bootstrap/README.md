@@ -131,6 +131,7 @@ The module always creates two service accounts with different permission levels:
 - **Access**: Can read resources and run builds, but cannot modify infrastructure
 - **Branch Restriction**: Works on any branch in the repository (safe to use anywhere)
 - **Use Case**: PR validation, testing, and plan operations
+- **Notw**: The one read/write role this service account has is for cloud build. As long as docker images are being referenced with image digests, this cannot affect prod. If tags are used, PR branches can push images to those tags and affect prod deplpoyments.
 
 #### Permission Differences
 
