@@ -45,10 +45,10 @@ locals {
   terraform_state_bucket = coalesce(var.terraform_state_bucket, local.default_bucket_name)
 
   # Flatten target_projects into individual service permissions for read-write access
-  project_service_permissions = flatten([
+  project_service_permissions_rw = flatten([
     for project_id, config in var.target_projects : [
       for service in config.required_services : {
-        key        = "${project_id}-${service}"
+        key        = "${project_id}-${service}-rw"
         project_id = project_id
         service    = service
         role       = local.read_write_roles[service]
@@ -57,10 +57,10 @@ locals {
   ])
 
   # Flatten target_projects into individual service permissions for read-only access
-  project_service_permissions_readonly = flatten([
+  project_service_permissions_ro = flatten([
     for project_id, config in var.target_projects : [
       for service in config.required_services : {
-        key        = "${project_id}-${service}-readonly"
+        key        = "${project_id}-${service}-ro"
         project_id = project_id
         service    = service
         role       = local.read_only_roles[service]
@@ -86,9 +86,9 @@ resource "google_service_account" "github_ci_ro" {
 # === CROSS-PROJECT PERMISSIONS ===
 
 # Service-specific permissions across target projects (read-write access)
-resource "google_project_iam_member" "ci_service_permissions" {
+resource "google_project_iam_member" "ci_service_permissions_rw" {
   for_each = {
-    for perm in local.project_service_permissions : perm.key => perm
+    for perm in local.project_service_permissions_rw : perm.key => perm
   }
 
   project = each.value.project_id
@@ -99,7 +99,7 @@ resource "google_project_iam_member" "ci_service_permissions" {
 # Service-specific permissions across target projects (read-only access)
 resource "google_project_iam_member" "ci_service_permissions_ro" {
   for_each = {
-    for perm in local.project_service_permissions_readonly : perm.key => perm
+    for perm in local.project_service_permissions_ro : perm.key => perm
   }
 
   project = each.value.project_id
@@ -108,7 +108,7 @@ resource "google_project_iam_member" "ci_service_permissions_ro" {
 }
 
 # Cloud Functions requires service account user role (read-write access)
-resource "google_project_iam_member" "ci_sa_user" {
+resource "google_project_iam_member" "ci_sa_user_rw" {
   for_each = {
     for project_id, config in var.target_projects : project_id => config
     if contains(config.required_services, "cloudfunctions")
@@ -123,7 +123,7 @@ resource "google_project_iam_member" "ci_sa_user" {
 # Note: Read-only access doesn't need service account user role since it can't create/delete service accounts
 
 # Allow creating and deleting service accounts (needed for Terraform - read-write access only)
-resource "google_project_iam_member" "ci_sa_admin" {
+resource "google_project_iam_member" "ci_sa_admin_rw" {
   for_each = var.target_projects
 
   project = each.key
@@ -132,7 +132,7 @@ resource "google_project_iam_member" "ci_sa_admin" {
 }
 
 # Allow reading service accounts (needed for Terraform - read-only access)
-resource "google_project_iam_member" "ci_sa_viewer" {
+resource "google_project_iam_member" "ci_sa_viewer_ro" {
   for_each = var.target_projects
 
   project = each.key
@@ -141,7 +141,7 @@ resource "google_project_iam_member" "ci_sa_viewer" {
 }
 
 # Allow reading project information and IAM policies (needed for Terraform - read-only access)
-resource "google_project_iam_member" "ci_project_viewer" {
+resource "google_project_iam_member" "ci_project_viewer_ro" {
   for_each = var.target_projects
 
   project = each.key
@@ -150,7 +150,7 @@ resource "google_project_iam_member" "ci_project_viewer" {
 }
 
 # Allow creating IAM bindings (e.g. google_project_iam_member - read-write access only)
-resource "google_project_iam_member" "ci_iam_admin" {
+resource "google_project_iam_member" "ci_iam_admin_rw" {
   for_each = var.target_projects
 
   project = each.key
@@ -161,19 +161,13 @@ resource "google_project_iam_member" "ci_iam_admin" {
 # === TERRAFORM STATE BUCKET ACCESS ===
 
 # Access to Terraform state bucket (read-write access - full access)
-resource "google_storage_bucket_iam_member" "ci_state_bucket_access" {
+resource "google_storage_bucket_iam_member" "ci_state_bucket_access_rw" {
   bucket = local.terraform_state_bucket
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.github_ci_rw.email}"
 }
 
-resource "google_storage_bucket_iam_member" "ci_state_bucket_reader" {
-  bucket = local.terraform_state_bucket
-  role   = "roles/storage.legacyBucketReader"
-  member = "serviceAccount:${google_service_account.github_ci_rw.email}"
-}
-
-resource "google_storage_bucket_iam_member" "ci_storage_legacy_bucket_owner" {
+resource "google_storage_bucket_iam_member" "ci_storage_legacy_bucket_owner_rw" {
   bucket = local.terraform_state_bucket
   role   = "roles/storage.legacyBucketOwner"
   member = "serviceAccount:${google_service_account.github_ci_rw.email}"
@@ -195,7 +189,7 @@ resource "google_storage_bucket_iam_member" "ci_state_bucket_legacy_reader_ro" {
 # === SECRET MANAGER ===
 
 # Dynamic secret admin access based on provided secret IDs (read-write access)
-resource "google_secret_manager_secret_iam_member" "ci_secret_admin" {
+resource "google_secret_manager_secret_iam_member" "ci_secret_admin_rw" {
   for_each  = toset(var.secret_ids)
   project   = var.secrets_project_id
   secret_id = each.value
@@ -244,9 +238,11 @@ resource "google_iam_workload_identity_pool" "github_ci_pool" {
 
 # Workload Identity Provider for read-write branches
 resource "google_iam_workload_identity_pool_provider" "github_ci_provider_rw" {
-  provider                           = google
-  project                            = data.google_project.khan_internal_services.number
-  workload_identity_pool_id          = google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id
+  provider                  = google
+  project                   = data.google_project.khan_internal_services.number
+  workload_identity_pool_id = google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id
+  # There's a max length of 32 characters for the workload identity pool provider ID
+  # In order to prevent name collisions, we use the SHA256 hash of the service name
   workload_identity_pool_provider_id = "${substr(sha256(var.service_name), 0, 8)}-rw"
   display_name                       = substr("${var.service_name} GitHub (read/write)", 0, 32)
   attribute_mapping = {
@@ -263,9 +259,11 @@ resource "google_iam_workload_identity_pool_provider" "github_ci_provider_rw" {
 
 # Workload Identity Provider for read-only access
 resource "google_iam_workload_identity_pool_provider" "github_ci_provider_ro" {
-  provider                           = google
-  project                            = data.google_project.khan_internal_services.number
-  workload_identity_pool_id          = google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id
+  provider                  = google
+  project                   = data.google_project.khan_internal_services.number
+  workload_identity_pool_id = google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id
+  # There's a max length of 32 characters for the workload identity pool provider ID
+  # In order to prevent name collisions, we use the SHA256 hash of the service name
   workload_identity_pool_provider_id = "${substr(sha256(var.service_name), 0, 8)}-ro"
   display_name                       = substr("${var.service_name} GitHub (read-only)", 0, 32)
   attribute_mapping = {

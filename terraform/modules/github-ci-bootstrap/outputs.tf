@@ -70,14 +70,3 @@ output "write_branch_patterns" {
   description = "List of branch patterns that are allowed to use the read/write service account"
   value       = var.write_branch_patterns
 }
-
-# Additional outputs for backward compatibility and clarity
-output "terraform_service_account_email" {
-  description = "Email address of the read-write service account (alias for service_account_email_rw)"
-  value       = google_service_account.github_ci_rw.email
-}
-
-output "workload_identity_provider" {
-  description = "Full resource name of the read-write Workload Identity provider (alias for workload_identity_provider_rw)"
-  value       = "projects/${data.google_project.khan_internal_services.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_ci_pool.workload_identity_pool_id}/providers/${google_iam_workload_identity_pool_provider.github_ci_provider_rw.workload_identity_pool_provider_id}"
-} 

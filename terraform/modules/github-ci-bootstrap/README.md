@@ -207,10 +207,10 @@ Each `service_name` gets its own isolated:
 
 | Name | Description |
 |------|-------------|
-| `service_account_email` | Email of the created service account (write-enabled branches) |
-| `service_account_email_pr` | Email of the created service account (read-only, available to any branch) |
-| `workload_identity_provider` | Full resource name of the Workload Identity provider (write-enabled branches) |
-| `workload_identity_provider_pr` | Full resource name of the Workload Identity provider (read-only, available to any branch) |
+| `service_account_email_rw` | Email of the created service account (write-enabled branches) |
+| `service_account_email_ro` | Email of the created service account (read-only, available to any branch) |
+| `workload_identity_provider_rw` | Full resource name of the Workload Identity provider (write-enabled branches) |
+| `workload_identity_provider_ro` | Full resource name of the Workload Identity provider (read-only, available to any branch) |
 | `terraform_state_bucket` | The GCS bucket name used for Terraform state (computed or provided) |
 | `service_name` | The unique identifier for this Terraform configuration and environment |
 | `target_projects` | Map of target projects configured |
@@ -218,7 +218,7 @@ Each `service_name` gets its own isolated:
 
 ## GitHub Actions Configuration
 
-After applying this module, configure your GitHub Actions workflow to manage Terraform in CI. The module creates two service accounts, so you need to conditionally use different service accounts based on the branch:
+After applying this module, configure your GitHub Actions workflow to manage Terraform in CI. The module creates two service accounts, so you need to conditionally use different service accounts based on the branch. Note, in these examples the `outputs.xyz` vars should be replaced directly with the output values:
 
 ```yaml
 permissions:
@@ -235,14 +235,15 @@ jobs:
         if: contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref)
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ outputs.workload_identity_provider }}
-          service_account: ${{ outputs.service_account_email }}
+          workload_identity_provider: ${{ outputs.workload_identity_provider_rw }}
+          service_account: ${{ outputs.service_account_email_rw }}
           
-      - name: Authenticate to Google Cloud (Read-Only - Any Branch)
+      - name: Authenticate to Google Cloud (Read-Only)
+        if: !contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref)
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ outputs.workload_identity_provider_pr }}
-          service_account: ${{ outputs.service_account_email_pr }}
+          workload_identity_provider: ${{ outputs.workload_identity_provider_ro }}
+          service_account: ${{ outputs.service_account_email_ro }}
           
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
