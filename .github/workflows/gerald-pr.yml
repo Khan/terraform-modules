@@ -7,14 +7,13 @@ name: Gerald - Notify and Request Reviewers On Pull Request
     # We also add "edited" to re-check when the base branch
     # is changed.
     types: [opened, synchronize, reopened, ready_for_review, edited]
-
 jobs:
   gerald:
     # Don't re-run if only the title or body changes
     if: "github.event.action != 'edited' || github.event.changes.base != null"
     runs-on: ubuntu-latest
     steps:
-      - uses: Khan/actions@gerald-pr-v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          admin-token: ${{ secrets.KHAN_ACTIONS_BOT_TOKEN }}
+    - uses: Khan/actions@gerald-pr-v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        admin-token: ${{ secrets.KHAN_ACTIONS_BOT_TOKEN }}

@@ -1,19 +1,29 @@
 name: Lint
-
 on:
   pull_request:
     branches:
-      - master
+    - main
+    - master
   push:
     branches:
-      - master
-
+    - main
+    - master
+  workflow_dispatch:
+# When a new revision is pushed to a PR, cancel all in-progress CI runs for that
+# PR. See https://docs.github.com/en/actions/using-jobs/using-concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   pr-test:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies and lint
-        run: make lint
+    - uses: actions/checkout@v5
+    - name: Install dependencies and lint
+      run: make lint
+    - name: yaml-lint
+      uses: ibiqlik/action-yamllint@v3
+      with:
+        config_file: .yamllint.yaml
+        format: github

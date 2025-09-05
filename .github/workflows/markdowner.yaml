@@ -1,0 +1,30 @@
+name: mdlint
+on:
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main
+  workflow_dispatch:
+jobs:
+  mdlint:
+    name: mdlint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: '0'
+    - name: Install Go
+      uses: actions/setup-go@v5
+    - name: Install shfmt
+      run: go install mvdan.cc/sh/v3/cmd/shfmt@latest
+    - uses: actions/setup-python@v5
+    - name: install dependencies
+      run: |
+        pip install --user mdformat mdformat-gfm mdformat-shfmt mdformat-tables mdformat-toc
+        # linkify-it-py needed rust so I skipped it
+    - name: markdown
+      run: |
+        export PATH="/root/.local/bin:$PATH"
+        find . -type d -name node_modules -prune -o -name '*.md' -type f -print0 | xargs -0 -n1 -P4 mdformat --check --wrap keep --number
