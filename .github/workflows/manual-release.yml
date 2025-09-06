@@ -25,7 +25,7 @@ jobs:
       version-valid: ${{ steps.check-version.outputs.valid }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: Check if module exists
       id: check-module
       run: |

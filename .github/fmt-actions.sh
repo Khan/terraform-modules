@@ -1,5 +1,7 @@
 #!/bin/bash
-
+# fmt-actions - reformats github actions
+# intended to be invoked from this same directory
+#
 # see https://til.simonwillison.net/yaml/yamlfmt
 
 function is_bin_in_path {

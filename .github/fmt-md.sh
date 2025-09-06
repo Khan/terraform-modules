@@ -30,5 +30,3 @@ export PATH="$HOME/.local/bin:$GOBIN:$PATH"
 # find -type f | while read f; do tail -n1 $f | read -r _ || echo >> $f; done
 # clean all markdown files 
 find . -type d -name node_modules -prune -o -name '*.md' -type f -print0 | xargs -0 -n1 -P4 mdformat --wrap keep --number
-
-#TODO(steve): Consider adding https://github.com/matttproud/gofencefmt

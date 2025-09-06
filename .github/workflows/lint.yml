@@ -1,4 +1,10 @@
-name: Lint
+name: Terraform and Markdown Lint
+env:
+  TERRAFORM_VERSION: 1.8.0 # edit
+  TFLINT_VERSION: 0.51.1 # edit
+  # example projects/123456789/locations/global/workloadIdentityPools/github-actions/providers/github-actions
+  # WORKLOAD_IDENTITY_PROVIDER: "" # TODO: Edit here
+  # SERVICE_ACCOUNT_EMAIL: "" # TODO: Edit here
 on:
   pull_request:
     branches:
@@ -20,8 +26,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
-    - name: Install dependencies and lint
-      run: make lint
+    - uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: ${{ env.TERRAFORM_VERSION }}
+    - name: Initialize Terraform
+      run: terraform init
+    - name: Check Terraform format
+      run: terraform fmt -check -recursive
+      working-directory: terraform
+      continue-on-error: true
+    - uses: terraform-linters/setup-tflint@v5
+      name: Setup TFLint
+      with:
+        tflint_version: 'v${{ env.TFLINT_VERSION }}'
+    - name: Show version
+      run: tflint --version
+    - name: Init TFLint
+      run: tflint --init
+      # TODO: edit here when in private repositories
+      #      env:
+      #        # https://github.com/terraform-linters/tflint/blob/master/docs/user-guide/plugins.md#avoiding-rate-limiting
+      #        GITHUB_TOKEN: ${{ github.token }}
+    - name: Run TFLint
+      run: tflint -f compact
     - name: yaml-lint
       uses: ibiqlik/action-yamllint@v3
       with:
