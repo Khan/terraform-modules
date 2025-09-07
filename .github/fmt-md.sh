@@ -18,6 +18,9 @@ function is_bin_in_path {
 
 export GOBIN="$HOME/go/bin"
 mkdir -p "$GOBIN"
+# uv installs things to $HOME/.local/bin
+# we installed go binaries to $GOBIN
+# so we ensure those both are in the PATH and take precedence
 export PATH="$HOME/.local/bin:$GOBIN:$PATH"
 ! is_bin_in_path uv && brew install uv
 ! is_bin_in_path shfmt && go install mvdan.cc/sh/v3/cmd/shfmt@latest

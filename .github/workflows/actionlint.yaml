@@ -47,7 +47,10 @@ jobs:
     # runs-on: [self-hosted, linux, x64]
     timeout-minutes: 30
     permissions:
-      contents: 'read'
+      # needed for the checkout action
+      contents: read
+      # needed to annotate the files in a pull request with comments
+      pull-requests: write
     steps:
     - name: Clone Repository (Latest)
       uses: actions/checkout@v5
@@ -72,6 +75,8 @@ jobs:
         SHELLCHECK_OPTS: '-e SC2086 -e SC2129 -e SC2164 -e SC2155 -e SC2103'
     - name: Install Go
       uses: actions/setup-go@v6
+    - name: Install GHALINT
+      run: go install github.com/suzuki-shunsuke/ghalint/cmd/ghalint@v1.5.3 # v1.5.3
     - run: ghalint run
       env:
         GHALINT_LOG_COLOR: always
