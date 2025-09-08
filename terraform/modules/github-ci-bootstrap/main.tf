@@ -15,30 +15,30 @@ terraform {
 # Define service-to-role mapping
 locals {
   read_write_roles = {
-    cloudfunctions     = "roles/cloudfunctions.admin"
-    storage            = "roles/storage.admin"
-    pubsub             = "roles/pubsub.admin"
-    scheduler          = "roles/cloudscheduler.admin"
-    run                = "roles/run.admin"
-    cloudbuild         = "roles/cloudbuild.admin"
-    artifactregistry   = "roles/artifactregistry.admin"
-    secretmanager      = "roles/secretmanager.admin"
-    logging            = "roles/logging.admin"
-    monitoring         = "roles/monitoring.admin"
+    cloudfunctions   = "roles/cloudfunctions.admin"
+    storage          = "roles/storage.admin"
+    pubsub           = "roles/pubsub.admin"
+    scheduler        = "roles/cloudscheduler.admin"
+    run              = "roles/run.admin"
+    cloudbuild       = "roles/cloudbuild.admin"
+    artifactregistry = "roles/artifactregistry.admin"
+    secretmanager    = "roles/secretmanager.admin"
+    logging          = "roles/logging.admin"
+    monitoring       = "roles/monitoring.admin"
   }
 
   # Read-only roles for any branch
   read_only_roles = {
-    cloudfunctions     = "roles/cloudfunctions.viewer"
-    storage            = "roles/storage.objectViewer"
-    pubsub             = "roles/pubsub.viewer"
-    scheduler          = "roles/cloudscheduler.viewer"
-    run                = "roles/run.viewer"
-    cloudbuild         = "roles/cloudbuild.viewer" # Read-only branches get viewer access
-    artifactregistry   = "roles/artifactregistry.reader"
-    secretmanager      = "roles/secretmanager.viewer"
-    logging            = "roles/logging.viewer"
-    monitoring         = "roles/monitoring.viewer"
+    cloudfunctions   = "roles/cloudfunctions.viewer"
+    storage          = "roles/storage.objectViewer"
+    pubsub           = "roles/pubsub.viewer"
+    scheduler        = "roles/cloudscheduler.viewer"
+    run              = "roles/run.viewer"
+    cloudbuild       = "roles/cloudbuild.builds.builder" # Read-only branches still need build access
+    artifactregistry = "roles/artifactregistry.reader"
+    secretmanager    = "roles/secretmanager.viewer"
+    logging          = "roles/logging.viewer"
+    monitoring       = "roles/monitoring.viewer"
   }
 
   # Parse GitHub repository into org and repo name
