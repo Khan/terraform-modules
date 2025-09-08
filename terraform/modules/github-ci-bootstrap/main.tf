@@ -20,7 +20,7 @@ locals {
     pubsub           = "roles/pubsub.admin"
     scheduler        = "roles/cloudscheduler.admin"
     run              = "roles/run.admin"
-    cloudbuild       = "roles/cloudbuild.admin"
+    cloudbuild       = "roles/cloudbuild.builds.builder"
     artifactregistry = "roles/artifactregistry.admin"
     secretmanager    = "roles/secretmanager.admin"
     logging          = "roles/logging.admin"
