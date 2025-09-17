@@ -53,28 +53,28 @@ jobs:
       pull-requests: write
     steps:
     - name: Clone Repository (Latest)
-      uses: actions/checkout@v5
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
       if: github.event.inputs.git-ref == ''
       with:
         persist-credentials: false
     - name: Clone Repository (Custom Ref)
-      uses: actions/checkout@v5
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
       if: github.event.inputs.git-ref != ''
       with:
         ref: ${{ github.event.inputs.git-ref }}
         persist-credentials: false
     - name: Run actionlint
       if: ${{ always() }}
-      uses: devops-actions/actionlint@v0.1.9
+      uses: devops-actions/actionlint@c6744a34774e4e1c1df0ff66bdb07ec7ee480ca0 # v0.1.9
       with: # https://www.shellcheck.net/wiki/SC2086 https://www.shellcheck.net/wiki/SC2129
         shellcheck_opts: '-e SC2086 -e SC2129'
     - name: Lint Any Shell scripts
       if: ${{ always() }}
-      uses: ludeeus/action-shellcheck@2.0.0
+      uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
       env:
         SHELLCHECK_OPTS: '-e SC2086 -e SC2129 -e SC2164 -e SC2155 -e SC2103'
     - name: Install Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6
     - name: Install GHALINT
       run: go install github.com/suzuki-shunsuke/ghalint/cmd/ghalint@v1.5.3 # v1.5.3
     - run: ghalint run

@@ -25,7 +25,7 @@ jobs:
       version-valid: ${{ steps.check-version.outputs.valid }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v5
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
     - name: Check if module exists
       id: check-module
       env:
@@ -60,7 +60,7 @@ jobs:
     if: needs.validate-input.outputs.module-exists == 'true' && needs.validate-input.outputs.version-valid == 'true'
     steps:
     - name: Checkout
-      uses: actions/checkout@v5
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
       with:
         fetch-depth: 0
     - name: Check version constraints
@@ -99,7 +99,7 @@ jobs:
           echo '```'
         } > release_notes.md
     - name: Create Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2
       with:
         tag_name: ${{ github.event.inputs.module }}-v${{ github.event.inputs.version }}
         name: "${{ github.event.inputs.module }} v${{ github.event.inputs.version }}"

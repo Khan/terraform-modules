@@ -25,8 +25,8 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
-    - uses: hashicorp/setup-terraform@v1
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+    - uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
       with:
         terraform_version: ${{ env.TERRAFORM_VERSION }}
     - name: Initialize Terraform
@@ -35,7 +35,7 @@ jobs:
       run: terraform fmt -check -recursive
       working-directory: terraform
       continue-on-error: true
-    - uses: terraform-linters/setup-tflint@v5
+    - uses: terraform-linters/setup-tflint@ae78205cfffec9e8d93fd2b3115c7e9d3166d4b6 # v5
       name: Setup TFLint
       with:
         tflint_version: 'v${{ env.TFLINT_VERSION }}'
@@ -50,7 +50,7 @@ jobs:
     - name: Run TFLint
       run: tflint -f compact
     - name: yaml-lint
-      uses: ibiqlik/action-yamllint@v3
+      uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3
       with:
         config_file: .yamllint.yaml
         format: github
