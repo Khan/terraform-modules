@@ -1,5 +1,5 @@
 #!/bin/bash
-# pin-actions.sh - pins all actions to Git SHA1, run from repo root
+# lintfix-pin-actions.sh - pins all actions to Git SHA1, run from repo root
 
 function is_bin_in_path {
   builtin type -P "$1" &> /dev/null
@@ -15,8 +15,9 @@ export PATH="$GOBIN:$PATH"
 export SED_COMMAND="gsed"
 ! is_bin_in_path gsed && export SED_COMMAND="sed"
 
+# pinning actions can mess up the yaml indenting so we reformat
 find . -name '*.y*l' | sort -u | grep '.github/workflows' | xargs -I {} ratchet pin '{}'
 cd .github
 find . -name '*.y*l' -exec ${SED_COMMAND} -i'' 's/ratchet:.*\/.*\@//g' {} \;
-./fmt-actions.sh
+./lintfix-fmt-actions.sh
 cd ..

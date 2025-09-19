@@ -1,4 +1,6 @@
 #!/bin/bash
+# lint-actions allows you to check your actions lint locally prior
+# to GitHub warning you
 
 function is_bin_in_path {
   builtin type -P "$1" &> /dev/null

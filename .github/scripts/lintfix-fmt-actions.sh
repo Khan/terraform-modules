@@ -1,6 +1,6 @@
 #!/bin/bash
 # fmt-actions - reformats github actions
-# intended to be invoked from this directory
+# intended to be invoked from *this* directory, NOT root
 #
 # see https://til.simonwillison.net/yaml/yamlfmt
 

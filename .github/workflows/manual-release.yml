@@ -67,7 +67,7 @@ jobs:
       env:
         TERRAFORM_MODULE: "${{ github.event.inputs.module }}"
         VERSION: "${{ github.event.inputs.version }}"
-      run: ./.github/workflows/check_version_constraints.sh
+      run: ./.github/scripts/manual-release-check-version-constraints.sh
     - name: Generate release notes
       id: generate-notes
       env:

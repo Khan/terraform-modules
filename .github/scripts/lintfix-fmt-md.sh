@@ -32,4 +32,4 @@ export PATH="$HOME/.local/bin:$GOBIN:$PATH"
 # ensure all files have trailing line endings
 # find -type f | while read f; do tail -n1 $f | read -r _ || echo >> $f; done
 # clean all markdown files 
-find . -type d -name node_modules -prune -o -name '*.md' -type f -print0 | xargs -0 -n1 -P4 mdformat --wrap keep --number
+find .. -type d -name node_modules -prune -o -name '*.md' -type f -print0 | xargs -0 -n1 -P4 mdformat --wrap keep --number

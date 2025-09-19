@@ -28,3 +28,6 @@ jobs:
       run: |
         export PATH="/root/.local/bin:$PATH"
         find . -type d -name node_modules -prune -o -name '*.md' -type f -print0 | xargs -0 -n1 -P4 mdformat --check --wrap keep --number
+    - name: Provide Help
+      if: '!cancelled()'
+      run: 'echo "For lint failures run the lintfix action or manually run ./.github/lintfix-fmt-md.sh"'
