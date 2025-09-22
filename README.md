@@ -25,8 +25,9 @@ Always use a specific version tag (e.g., `?ref=v1.0.0`) to ensure consistent dep
 ## Structure
 
 Each module is self-contained in its own directory under `terraform/modules/` and includes:
+
 - **main.tf** - Primary resource definitions
-- **variables.tf** - Input variable declarations  
+- **variables.tf** - Input variable declarations
 - **outputs.tf** - Output value definitions
 - **versions.tf** - Provider version constraints
 - **README.md** - Module-specific documentation (auto-generated)
@@ -35,7 +36,7 @@ Each module is self-contained in its own directory under `terraform/modules/` an
 
 ## Versioning
 
-Module versions are managed manually using GitHub Actions. 
+Module versions are managed manually using GitHub Actions.
 
 See the [Contributing Guide](.github/CONTRIBUTING.md#releases) for details on creating releases.
 

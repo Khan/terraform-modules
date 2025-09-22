@@ -49,6 +49,7 @@ Complete working examples are available in the [`examples/`](./examples/) direct
 ## Usage Examples
 
 ### Basic Image Build
+
 ```hcl
 module "web_app" {
   source = "git::https://github.com/Khan/terraform-cloud-build-docker-module.git?ref=v1.0.0"
@@ -61,6 +62,7 @@ module "web_app" {
 ```
 
 ### Custom Dockerfile Location
+
 ```hcl
 module "api_service" {
   source = "git::https://github.com/Khan/terraform-cloud-build-docker-module.git?ref=v1.0.0"
@@ -76,6 +78,7 @@ module "api_service" {
 **Note**: The `dockerfile_path` is relative to the `context_path`. In this example, the Dockerfile would be located at `./api/dockerfiles/production.Dockerfile`.
 
 ### With Build Arguments
+
 ```hcl
 module "data_processor" {
   source = "git::https://github.com/Khan/terraform-cloud-build-docker-module.git?ref=v1.0.0"
@@ -93,6 +96,7 @@ module "data_processor" {
 ```
 
 ### With Base Image Digest
+
 ```hcl
 module "secure_app" {
   source = "git::https://github.com/Khan/terraform-cloud-build-docker-module.git?ref=v1.0.0"
@@ -108,12 +112,14 @@ module "secure_app" {
 ## Requirements & Inputs
 
 ### Required
+
 - `image_name` - Name of the Docker image to build
 - `context_path` - Path to the build context directory
 - `project_id` - GCP project ID where the image will be built
 - `image_tag_suffix` - Tag suffix for the image (e.g., 'latest', 'v1.0.0')
 
 ### Optional (with defaults)
+
 - `dockerfile_path` - Path to the Dockerfile relative to context_path ("Dockerfile")
 - `base_digest` - Base image digest for build args ("latest")
 - `cloud_build_config` - Custom Cloud Build config file (null)
@@ -132,6 +138,7 @@ module "secure_app" {
 ## How It Works
 
 ### Build Process
+
 1. **Context Preparation**: The module prepares the build context and handles Dockerfile symlinks if needed
 2. **Cache Tag Resolution**: Determines the effective cache tag by checking if the specified tag exists, falling back to "latest" if not
 3. **Cloud Build Submission**: Submits the build to Google Cloud Build with appropriate substitutions
@@ -140,19 +147,23 @@ module "secure_app" {
 6. **Output**: Returns the digest for use in other Terraform resources
 
 ### Caching Strategy
+
 - **Branch-based**: Uses the `image_tag_suffix` as a cache tag
 - **Fallback to Latest**: If the specified cache tag doesn't exist, falls back to using "latest" as the cache tag, ensuring we always have some level of caching
 - **Layer Reuse**: Subsequent builds reuse cached layers when possible
 - **Cache Invalidation**: Cache is automatically invalidated when Dockerfile or context changes
 
 ### Dockerfile Support
+
 The module supports various Dockerfile configurations:
+
 - **Standard**: `Dockerfile` in the context root (default)
 - **Custom names**: Use `dockerfile_path = "production.Dockerfile"` for files like `production.Dockerfile`
 - **Subdirectories**: Use `dockerfile_path = "dockerfiles/app.Dockerfile"` for files in subdirectories
 - **Automatic symlinking**: The module creates temporary symlinks to make custom Dockerfile names work with Cloud Build
 
 **Example structure:**
+
 ```
 ./app/
 ├── Dockerfile                    # Default: dockerfile_path = "Dockerfile"
@@ -183,16 +194,20 @@ your-app-repo/
 ## Prerequisites
 
 ### GCP Setup
+
 - Google Cloud Build API enabled
 - Container Registry or Artifact Registry access
 - Appropriate IAM permissions for Cloud Build
 
 ### Local Setup
+
 - `gcloud` CLI installed and authenticated
 - Terraform >= 1.3.0
 
 ### GCS Buckets
+
 The module expects the required GCS bucket to exist:
+
 - `gs://{project_id}-cloudbuild-ci` - For build staging and logs
 
 **Note**: Cloud Build will automatically create this bucket if it doesn't exist, but for production use, you may want to create it explicitly with proper IAM permissions.
@@ -200,6 +215,7 @@ The module expects the required GCS bucket to exist:
 ## Common Patterns
 
 ### Version Tagging
+
 ```hcl
 # Use semantic versioning
 image_tag_suffix = "v1.2.3"
@@ -212,7 +228,9 @@ image_tag_suffix = "branch-${replace(var.git_branch, "/", "-")}"
 ```
 
 ### Multi-stage Builds
+
 The module works seamlessly with multi-stage Dockerfiles:
+
 ```dockerfile
 # Dockerfile
 FROM node:18-alpine AS builder
@@ -228,6 +246,7 @@ CMD ["npm", "start"]
 ```
 
 ### Integration with Cloud Run
+
 ```hcl
 module "app_image" {
   source = "git::https://github.com/Khan/terraform-cloud-build-docker-module.git?ref=v1.0.0"
@@ -255,16 +274,19 @@ resource "google_cloud_run_v2_service" "app" {
 ## Troubleshooting
 
 ### Build Failures
+
 - Check Cloud Build logs in the GCS bucket
 - Verify Dockerfile syntax and context
 - Ensure all required files are in the build context
 
 ### Permission Issues
+
 - Verify Cloud Build service account has necessary permissions
 - Check Container Registry/Artifact Registry access
 - Ensure GCS buckets exist and are accessible
 
 ### Cache Issues
+
 - Clear cache by using a unique `image_tag_suffix`
 - Check if base images are accessible
 - Verify network connectivity during builds

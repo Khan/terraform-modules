@@ -21,12 +21,14 @@ This example demonstrates how to use the scheduled-job module to create a Cloud 
 ## Usage
 
 1. Set your project variables:
+
    ```bash
    export TF_VAR_project_id="your-gcp-project"
    export TF_VAR_secrets_project_id="your-secrets-project"
    ```
 
 2. Initialize and apply:
+
    ```bash
    terraform init
    terraform plan
@@ -76,6 +78,7 @@ module "daily_data_processor" {
 ## Job Code
 
 The job code in `job-code/processor.py` is a simple Python script that:
+
 - Logs the start of processing
 - Accesses environment variables (including secrets)
 - Simulates data processing work

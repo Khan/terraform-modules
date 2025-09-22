@@ -23,11 +23,13 @@ This configuration uses the reusable `github-ci-bootstrap` module to create:
 ## Purpose
 
 This creates the necessary infrastructure for managing Terraform in GitHub Actions CI:
+
 - `terraform plan` - Review infrastructure changes in CI
 - `terraform apply` - Deploy infrastructure changes via CI
 - `terraform destroy` - (if needed) Clean up resources via CI
 
 Each Terraform configuration managed in CI gets its own service account to ensure:
+
 - **Isolation**: Separate permissions and state for prod/staging/dev configurations
 - **Security**: Least privilege access to only required GCP services
 - **Traceability**: Clear audit trail of which Terraform CI account made which changes
@@ -35,21 +37,25 @@ Each Terraform configuration managed in CI gets its own service account to ensur
 ## Usage
 
 1. **Navigate to this directory:**
+
    ```bash
    cd terraform/examples/bootstrap-with-module
    ```
 
 2. **Initialize Terraform:**
+
    ```bash
    terraform init
    ```
 
 3. **Review the plan:**
+
    ```bash
    terraform plan
    ```
 
 4. **Apply the configuration:**
+
    ```bash
    terraform apply
    ```
@@ -57,10 +63,13 @@ Each Terraform configuration managed in CI gets its own service account to ensur
 ## Comparison
 
 ### Before (Direct Resources)
+
 The original bootstrap configuration had ~150 lines of Terraform with explicit resource definitions for service accounts, IAM bindings, and Workload Identity setup.
 
 ### After (Module)
+
 This example reduces the configuration to ~25 lines by using the reusable module, making it:
+
 - **Easier to maintain** - Updates happen in one place
 - **Less error-prone** - Tested, reusable components
 - **More consistent** - Standardized Terraform CI setup across projects
@@ -86,13 +95,14 @@ After applying, you'll get the service account email and Workload Identity provi
 To migrate from an existing bootstrap setup:
 
 1. **Backup current state:**
+
    ```bash
    cd ../../bootstrap
-   terraform state pull > backup.tfstate
+   terraform state pull >backup.tfstate
    ```
 
 2. **Apply this example configuration**
 
 3. **Update GitHub Actions workflows** to use the new service account for managing Terraform in CI
 
-The new architecture uses shared infrastructure, so the first GitHub Terraform CI setup to be deployed will create the shared pool, and subsequent Terraform configurations will reuse it. 
+The new architecture uses shared infrastructure, so the first GitHub Terraform CI setup to be deployed will create the shared pool, and subsequent Terraform configurations will reuse it.

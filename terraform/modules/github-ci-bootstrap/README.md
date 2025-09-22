@@ -8,7 +8,7 @@ Each module invocation creates a dedicated service account for a complete Terraf
 
 - **Isolated Terraform CI**: Each Terraform setup gets its own service account and state bucket for CI operations
 - **Secure GitHub Actions**: Run `terraform plan` and `terraform apply` in GitHub Actions without storing keys
-- **Cross-Project Deployments**: Single service account can manage Terraform resources across multiple GCP projects  
+- **Cross-Project Deployments**: Single service account can manage Terraform resources across multiple GCP projects
 - **Environment Separation**: Separate CI service accounts for prod, staging, dev, etc.
 
 ## Features
@@ -28,8 +28,9 @@ Each module invocation creates a dedicated service account for a complete Terraf
 ## Architecture
 
 All GitHub Terraform CI infrastructure is centralized in the `khan-internal-services` project:
+
 - **Single Pool**: `khan-internal-services-github-ci` pool shared by all Terraform configurations managed in CI
-- **Unique Providers**: Each Terraform configuration gets its own provider within the shared pool  
+- **Unique Providers**: Each Terraform configuration gets its own provider within the shared pool
 - **Cross-Project Permissions**: Service accounts get permissions in target projects for Terraform resource management
 - **State Bucket Access**: Service accounts get appropriate permissions for Terraform state storage in CI
 
@@ -66,15 +67,15 @@ module "culture_cron_terraform_ci" {
 
 ## Inputs
 
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
-| `service_name` | User-defined unique identifier for this Terraform configuration and environment (e.g., 'culture-cron-prod', 'webapp-staging') | `string` | n/a | yes |
-| `github_repository` | GitHub repository containing the Terraform configuration in format 'org/repo' | `string` | n/a | yes |
-| `target_projects` | Map of GCP projects where this Terraform configuration will deploy resources. Keys are project IDs. | `map(object)` | `{}` | no |
-| `write_branch_patterns` | List of branch patterns that are allowed to use the read/write service account (defaults to main and master) | `list(string)` | `["main", "master"]` | no |
-| `terraform_state_bucket` | GCS bucket name for storing Terraform state for this configuration | `string` | `terraform-{org}-{repo}-{service}` | no |
-| `secrets_project_id` | Project ID where secrets needed by the Terraform configuration are stored | `string` | `"khan-academy"` | no |
-| `secret_ids` | List of secret IDs that the Terraform configuration needs access to | `list(string)` | `[]` | no |
+| Name                     | Description                                                                                                                   | Type           | Default                            | Required |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | -------------- | ---------------------------------- | :------: |
+| `service_name`           | User-defined unique identifier for this Terraform configuration and environment (e.g., 'culture-cron-prod', 'webapp-staging') | `string`       | n/a                                |   yes    |
+| `github_repository`      | GitHub repository containing the Terraform configuration in format 'org/repo'                                                 | `string`       | n/a                                |   yes    |
+| `target_projects`        | Map of GCP projects where this Terraform configuration will deploy resources. Keys are project IDs.                           | `map(object)`  | `{}`                               |    no    |
+| `write_branch_patterns`  | List of branch patterns that are allowed to use the read/write service account (defaults to main and master)                  | `list(string)` | `["main", "master"]`               |    no    |
+| `terraform_state_bucket` | GCS bucket name for storing Terraform state for this configuration                                                            | `string`       | `terraform-{org}-{repo}-{service}` |    no    |
+| `secrets_project_id`     | Project ID where secrets needed by the Terraform configuration are stored                                                     | `string`       | `"khan-academy"`                   |    no    |
+| `secret_ids`             | List of secret IDs that the Terraform configuration needs access to                                                           | `list(string)` | `[]`                               |    no    |
 
 ### Target Projects Structure
 
@@ -96,7 +97,7 @@ target_projects = {
 These services correspond to GCP resources that your Terraform configuration can deploy and manage:
 
 - `cloudfunctions` - Enables deploying and managing Cloud Functions via Terraform
-- `storage` - Enables creating and managing Cloud Storage buckets via Terraform  
+- `storage` - Enables creating and managing Cloud Storage buckets via Terraform
 - `pubsub` - Enables creating and managing Pub/Sub topics and subscriptions via Terraform
 - `scheduler` - Enables creating and managing Cloud Scheduler jobs via Terraform
 - `run` - Enables deploying and managing Cloud Run services and jobs via Terraform
@@ -119,6 +120,7 @@ This ensures each Terraform setup gets its own isolated state bucket while maint
 The module always creates two service accounts with different permission levels:
 
 #### Write-Enabled Branch Service Account (Full Access)
+
 - **Service Account Name**: `{service_name}-ci`
 - **Permissions**: Full admin permissions for all specified services
 - **Access**: Can create, modify, and delete resources
@@ -126,6 +128,7 @@ The module always creates two service accounts with different permission levels:
 - **Use Case**: Production deployments and infrastructure changes
 
 #### Read-Only Service Account (Read-Only + Cloud Build)
+
 - **Service Account Name**: `{service_name}-ci-pr`
 - **Permissions**: Read-only permissions for most services, full access to Cloud Build
 - **Access**: Can read resources and run builds, but cannot modify infrastructure
@@ -135,20 +138,21 @@ The module always creates two service accounts with different permission levels:
 
 #### Permission Differences
 
-| Service | Write-Enabled Branches | Read-Only Service Account |
-|---------|----------------------|---------------------------|
-| Cloud Functions | `roles/cloudfunctions.admin` | `roles/cloudfunctions.viewer` |
-| Storage | `roles/storage.admin` | `roles/storage.objectViewer` |
-| Pub/Sub | `roles/pubsub.admin` | `roles/pubsub.viewer` |
-| Scheduler | `roles/cloudscheduler.admin` | `roles/cloudscheduler.viewer` |
-| Cloud Run | `roles/run.admin` | `roles/run.viewer` |
-| Cloud Build | `roles/cloudbuild.builds.builder` | `roles/cloudbuild.builds.builder` |
-| Secret Manager | `roles/secretmanager.admin` | `roles/secretmanager.secretAccessor` |
-| Terraform State | `roles/storage.objectAdmin` | `roles/storage.objectViewer` |
+| Service         | Write-Enabled Branches            | Read-Only Service Account            |
+| --------------- | --------------------------------- | ------------------------------------ |
+| Cloud Functions | `roles/cloudfunctions.admin`      | `roles/cloudfunctions.viewer`        |
+| Storage         | `roles/storage.admin`             | `roles/storage.objectViewer`         |
+| Pub/Sub         | `roles/pubsub.admin`              | `roles/pubsub.viewer`                |
+| Scheduler       | `roles/cloudscheduler.admin`      | `roles/cloudscheduler.viewer`        |
+| Cloud Run       | `roles/run.admin`                 | `roles/run.viewer`                   |
+| Cloud Build     | `roles/cloudbuild.builds.builder` | `roles/cloudbuild.builds.builder`    |
+| Secret Manager  | `roles/secretmanager.admin`       | `roles/secretmanager.secretAccessor` |
+| Terraform State | `roles/storage.objectAdmin`       | `roles/storage.objectViewer`         |
 
 #### Branch Pattern Configuration
 
 The `write_branch_patterns` variable accepts exact branch names:
+
 - `main` - Matches the main branch
 - `master` - Matches the master branch
 - `production` - Matches a production branch
@@ -163,6 +167,7 @@ The `service_name` is a **user-defined identifier** that you choose yourself to 
 #### How to Choose a Service Name
 
 **You should choose a name that clearly identifies:**
+
 1. **What service/application** this Terraform configuration manages
 2. **Which environment** (prod, staging, dev, etc.)
 3. **What scope** (if you have multiple Terraform configurations per service)
@@ -175,12 +180,12 @@ The `service_name` is a **user-defined identifier** that you choose yourself to 
 
 #### Examples by Use Case
 
-| Scenario | Service Name | What It Represents |
-|----------|--------------|-------------------|
-| Culture Cron production | `culture-cron-prod` | Production deployment of Culture Cron service |
-| Webapp staging environment | `webapp-staging` | Staging environment for the main webapp |
-| API development environment | `api-dev` | Development environment for API service |
-| Shared infrastructure | `shared-infra-prod` | Production shared infrastructure (networking, etc.) |
+| Scenario                     | Service Name                                     | What It Represents                                  |
+| ---------------------------- | ------------------------------------------------ | --------------------------------------------------- |
+| Culture Cron production      | `culture-cron-prod`                              | Production deployment of Culture Cron service       |
+| Webapp staging environment   | `webapp-staging`                                 | Staging environment for the main webapp             |
+| API development environment  | `api-dev`                                        | Development environment for API service             |
+| Shared infrastructure        | `shared-infra-prod`                              | Production shared infrastructure (networking, etc.) |
 | Multiple configs per service | `webapp-frontend-prod`<br/>`webapp-backend-prod` | Separate Terraform configs for frontend and backend |
 
 #### Technical Requirements
@@ -193,11 +198,13 @@ The `service_name` is a **user-defined identifier** that you choose yourself to 
 #### Multi-Configuration Repositories
 
 A single GitHub repository can have multiple `service_name` values for different purposes:
+
 - Different environments (`myapp-prod`, `myapp-staging`, `myapp-dev`)
 - Different components (`myapp-frontend-prod`, `myapp-backend-prod`)
 - Different deployment scopes (`myapp-us-prod`, `myapp-eu-prod`)
 
 Each `service_name` gets its own isolated:
+
 - Service account (`{service_name}-ci`)
 - Terraform state bucket (`terraform-{org}-{repo}-{service_name}`)
 - Workload Identity provider (`{service_name}-provider`)
@@ -206,16 +213,16 @@ Each `service_name` gets its own isolated:
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| `service_account_email_rw` | Email of the created service account (write-enabled branches) |
-| `service_account_email_ro` | Email of the created service account (read-only, available to any branch) |
-| `workload_identity_provider_rw` | Full resource name of the Workload Identity provider (write-enabled branches) |
+| Name                            | Description                                                                               |
+| ------------------------------- | ----------------------------------------------------------------------------------------- |
+| `service_account_email_rw`      | Email of the created service account (write-enabled branches)                             |
+| `service_account_email_ro`      | Email of the created service account (read-only, available to any branch)                 |
+| `workload_identity_provider_rw` | Full resource name of the Workload Identity provider (write-enabled branches)             |
 | `workload_identity_provider_ro` | Full resource name of the Workload Identity provider (read-only, available to any branch) |
-| `terraform_state_bucket` | The GCS bucket name used for Terraform state (computed or provided) |
-| `service_name` | The unique identifier for this Terraform configuration and environment |
-| `target_projects` | Map of target projects configured |
-| `write_branch_patterns` | List of branch patterns that are allowed to use the read/write service account |
+| `terraform_state_bucket`        | The GCS bucket name used for Terraform state (computed or provided)                       |
+| `service_name`                  | The unique identifier for this Terraform configuration and environment                    |
+| `target_projects`               | Map of target projects configured                                                         |
+| `write_branch_patterns`         | List of branch patterns that are allowed to use the read/write service account            |
 
 ## GitHub Actions Configuration
 
@@ -255,12 +262,12 @@ jobs:
 With dual service accounts, you can also conditionally run different Terraform operations:
 
 ```yaml
-      - name: Terraform Plan (All Branches)
-        run: terraform plan
-        
-      - name: Terraform Apply (Write-Enabled Branches Only)
-        if: contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref)
-        run: terraform apply -auto-approve
+  - name: Terraform Plan (All Branches)
+    run: terraform plan
+
+  - name: Terraform Apply (Write-Enabled Branches Only)
+    if: contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref)
+    run: terraform apply -auto-approve
 ```
 
 ## Security Features
@@ -274,6 +281,7 @@ With dual service accounts, you can also conditionally run different Terraform o
 ## Examples
 
 ### Single Project Terraform Configuration (Using Default State Bucket)
+
 ```hcl
 # CI for culture-cron production Terraform configuration
 module "culture_cron_prod_ci" {
@@ -294,6 +302,7 @@ module "culture_cron_prod_ci" {
 ```
 
 ### Multi-Project Terraform Configuration
+
 ```hcl
 # CI for webapp staging Terraform configuration that deploys across multiple projects
 module "webapp_staging_ci" {
@@ -317,6 +326,7 @@ module "webapp_staging_ci" {
 ```
 
 ### Terraform Configuration with Secrets Access (Custom State Bucket)
+
 ```hcl
 # CI for API production Terraform configuration that needs access to secrets
 module "api_prod_ci" {
@@ -343,6 +353,7 @@ module "api_prod_ci" {
 ```
 
 ### Terraform Configuration with Storage-Only Access
+
 ```hcl
 # CI for static site Terraform configuration that only manages storage buckets
 module "static_site_prod_ci" {
@@ -363,6 +374,7 @@ module "static_site_prod_ci" {
 ```
 
 ### Terraform Configuration with Cloud Run and Cloud Build
+
 ```hcl
 # CI for webapp Terraform configuration that manages Cloud Run services and Cloud Build
 module "webapp_prod_ci" {
@@ -383,6 +395,7 @@ module "webapp_prod_ci" {
 ```
 
 ### Terraform Configuration with Dual Service Accounts
+
 ```hcl
 # CI for API production Terraform configuration with separate service accounts for main and PR branches
 module "api_prod_ci" {
