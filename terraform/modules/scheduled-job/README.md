@@ -413,3 +413,16 @@ gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest ./jobs/yo
 | `"0 2 * * *"`    | 2 AM daily       |
 | `"0 9 * * 1"`    | Monday 9 AM      |
 | `"*/15 * * * *"` | Every 15 minutes |
+
+## CI/CD Considerations
+
+This module is designed to work seamlessly with CI/CD pipelines where `terraform plan` and `terraform apply` run as separate jobs with ephemeral storage.
+
+The module uses `filebase64()` to embed the function archive content directly in the Terraform plan file. This ensures that the archive content is available during the apply phase even when the original zip file no longer exists.
+
+**How it works:**
+
+1. During `plan`: The `archive_file` data source creates a zip file, and `filebase64()` reads it and embeds the content in the plan
+2. During `apply`: The embedded content from the plan is used to create the GCS object, no local files needed
+
+This approach eliminates the need for artifact management between CI jobs while keeping the module simple and reliable.
