@@ -54,9 +54,9 @@ data "archive_file" "function_archive" {
 resource "google_storage_bucket_object" "function_archive" {
   count = var.execution_type == "function" ? 1 : 0
 
-  name   = "${var.job_name}-function-${data.archive_file.function_archive[0].output_sha}.zip"
-  bucket = google_storage_bucket.function_bucket[0].name
-  source = data.archive_file.function_archive[0].output_path
+  name    = "${var.job_name}-function-${data.archive_file.function_archive[0].output_sha}.zip"
+  bucket  = google_storage_bucket.function_bucket[0].name
+  content = data.archive_file.function_archive[0].output_base64
 }
 
 # PubSub topic for triggering the Cloud Function (only created when execution_type is "function")
