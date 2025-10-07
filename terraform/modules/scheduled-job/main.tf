@@ -46,6 +46,16 @@ data "archive_file" "function_archive" {
   excludes    = var.excludes
 }
 
+# Read the archive file content during plan time (only for Cloud Functions)
+# This data source reads the zip created by archive_file and embeds the content in the plan binary
+# This ensures the content is available during apply even when running on a separate machine
+data "local_sensitive_file" "function_archive_content" {
+  count = var.execution_type == "function" ? 1 : 0
+
+  filename   = data.archive_file.function_archive[0].output_path
+  depends_on = [data.archive_file.function_archive]
+}
+
 # Upload function archive to storage bucket (only for Cloud Functions)
 # The object name includes the source code hash, ensuring:
 # 1. Cloud Function redeploys when source code changes (new hash = new object name)
@@ -56,9 +66,7 @@ resource "google_storage_bucket_object" "function_archive" {
 
   name    = "${var.job_name}-function-${data.archive_file.function_archive[0].output_sha}.zip"
   bucket  = google_storage_bucket.function_bucket[0].name
-  # Use filebase64 to embed the zip file content directly in the terraform plan
-  # This ensures the content is available during apply even in separate CI jobs
-  content = filebase64(data.archive_file.function_archive[0].output_path)
+  content = data.local_sensitive_file.function_archive_content[0].content
 }
 
 # PubSub topic for triggering the Cloud Function (only created when execution_type is "function")
