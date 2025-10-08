@@ -56,6 +56,17 @@ data "local_sensitive_file" "function_archive_content" {
   depends_on = [data.archive_file.function_archive]
 }
 
+# Write the embedded zip content to a file
+# This recreates the zip file using the content embedded in the tfplan binary
+# This supports running an `apply` after a `plan` on a different machine.
+resource "local_file" "function_archive_for_upload" {
+  count = var.execution_type == "function" ? 1 : 0
+
+  filename        = "${path.module}/${var.job_name}-function.zip"
+  content_base64  = data.local_sensitive_file.function_archive_content[0].content_base64
+  file_permission = "0644"
+}
+
 # Upload function archive to storage bucket (only for Cloud Functions)
 # The object name includes the source code hash, ensuring:
 # 1. Cloud Function redeploys when source code changes (new hash = new object name)
@@ -64,9 +75,9 @@ data "local_sensitive_file" "function_archive_content" {
 resource "google_storage_bucket_object" "function_archive" {
   count = var.execution_type == "function" ? 1 : 0
 
-  name    = "${var.job_name}-function-${data.archive_file.function_archive[0].output_sha}.zip"
-  bucket  = google_storage_bucket.function_bucket[0].name
-  content = data.local_sensitive_file.function_archive_content[0].content
+  name   = "${var.job_name}-function-${data.archive_file.function_archive[0].output_sha}.zip"
+  bucket = google_storage_bucket.function_bucket[0].name
+  source = local_file.function_archive_for_upload[0].filename
 }
 
 # PubSub topic for triggering the Cloud Function (only created when execution_type is "function")
