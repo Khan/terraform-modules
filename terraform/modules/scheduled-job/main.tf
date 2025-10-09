@@ -249,6 +249,7 @@ resource "google_cloud_run_v2_job" "job" {
         }
       }
 
+      max_retries     = var.retries_enabled ? 3 : 0
       service_account = google_service_account.function_sa.email
       timeout         = var.job_timeout
     }
