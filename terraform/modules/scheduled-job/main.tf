@@ -135,8 +135,11 @@ resource "google_cloudfunctions2_function" "function" {
   description = var.description
   location    = var.region
 
-  # Ensure service account is created before the function
-  depends_on = [google_service_account.function_sa]
+  # Ensure service account and secret access are created before the function
+  depends_on = [
+    google_service_account.function_sa,
+    google_secret_manager_secret_iam_member.function_secret_access
+  ]
 
   build_config {
     runtime     = var.runtime
@@ -197,8 +200,11 @@ resource "google_cloud_run_v2_job" "job" {
   # Allow Terraform to manage the job lifecycle
   deletion_protection = false
 
-  # Ensure service account is created before the job
-  depends_on = [google_service_account.function_sa]
+  # Ensure service account and secret access are created before the job
+  depends_on = [
+    google_service_account.function_sa,
+    google_secret_manager_secret_iam_member.function_secret_access
+  ]
 
   lifecycle {
     precondition {
