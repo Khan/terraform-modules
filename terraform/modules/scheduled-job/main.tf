@@ -284,4 +284,129 @@ resource "google_cloud_scheduler_job" "job_scheduler" {
       scope                 = "https://www.googleapis.com/auth/cloud-platform"
     }
   }
-} 
+}
+
+# Alerting resources (only created when enable_alerting is true)
+
+# Fetch Slack API token from Secret Manager
+data "google_secret_manager_secret_version" "slack_token" {
+  count = var.enable_alerting ? 1 : 0
+
+  project = "khan-academy"
+  secret  = "Slack__API_token_for_alertlib"
+}
+
+locals {
+  alert_project_id = var.alert_project_id != null ? var.alert_project_id : var.project_id
+  slack_auth_token = var.enable_alerting ? data.google_secret_manager_secret_version.slack_token[0].secret_data : null
+  slack_cc_mention = length(var.slack_mention_users) > 0 ? "\n\nCC: ${join(" ", var.slack_mention_users)}" : ""
+  
+  # Console URLs for functions and jobs
+  function_console_url = "https://console.cloud.google.com/run/detail/${var.region}/${var.job_name}/observability/logs?project=${var.project_id}"
+  job_console_url      = "https://console.cloud.google.com/run/jobs/detail/${var.region}/${var.job_name}/observability/logs?project=${var.project_id}"
+}
+
+# Monitoring notification channel for Slack
+resource "google_monitoring_notification_channel" "slack_channel" {
+  count = var.enable_alerting ? 1 : 0
+
+  project      = local.alert_project_id
+  display_name = "${var.job_name} Slack Alerts"
+  type         = "slack"
+
+  labels = {
+    channel_name = var.slack_channel
+  }
+
+  sensitive_labels {
+    auth_token = local.slack_auth_token
+  }
+}
+
+# Monitoring policy for Cloud Function failures (when execution_type is "function")
+resource "google_monitoring_alert_policy" "function_failure" {
+  count = var.enable_alerting && var.execution_type == "function" ? 1 : 0
+
+  project      = local.alert_project_id
+  display_name = "${var.job_name} Function Failure Alert"
+  combiner     = "OR"
+  enabled      = true
+
+  alert_strategy {
+    auto_close = "86400s" # Auto-close after 24 hours if condition is no longer met
+  }
+
+  conditions {
+    display_name = "${var.job_name} function execution failure"
+
+    condition_threshold {
+      filter = "resource.type=\"cloud_function\" AND resource.labels.function_name=\"${var.job_name}\" AND metric.type=\"cloudfunctions.googleapis.com/function/execution_count\" AND metric.labels.status!=\"ok\""
+
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+
+      duration = "60s"
+
+      aggregations {
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_DELTA"
+        group_by_fields      = ["resource.service_name"]
+      }
+
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  notification_channels = [google_monitoring_notification_channel.slack_channel[0].name]
+
+  documentation {
+    content   = "The Cloud Function ${var.job_name} has failed to execute. Check the function logs for more details.\n\n[View Function in Console](${local.function_console_url})${local.slack_cc_mention}"
+    mime_type = "text/markdown"
+  }
+}
+
+# Monitoring policy for Cloud Run Job failures (when execution_type is "job")
+resource "google_monitoring_alert_policy" "job_failure" {
+  count = var.enable_alerting && var.execution_type == "job" ? 1 : 0
+
+  project      = local.alert_project_id
+  display_name = "${var.job_name} Job Failure Alert"
+  combiner     = "OR"
+  enabled      = true
+
+  alert_strategy {
+    auto_close = "86400s" # Auto-close after 24 hours if condition is no longer met
+  }
+
+  conditions {
+    display_name = "${var.job_name} job execution failure"
+
+    condition_threshold {
+      filter = "resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"${var.job_name}\" AND metric.type=\"run.googleapis.com/job/completed_execution_count\" AND metric.labels.result!=\"succeeded\""
+
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+
+      duration = "60s"
+
+      aggregations {
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_DELTA"
+        group_by_fields      = ["resource.service_name"]
+      }
+
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  notification_channels = [google_monitoring_notification_channel.slack_channel[0].name]
+
+  documentation {
+    content   = "The Cloud Run Job ${var.job_name} has failed to execute or complete successfully. Check the job logs for more details.\n\n[View Job in Console](${local.job_console_url})${local.slack_cc_mention}"
+    mime_type = "text/markdown"
+  }
+}

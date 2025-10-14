@@ -194,3 +194,27 @@ variable "job_image" {
   type        = string
   default     = null
 }
+
+# Alerting configuration
+variable "enable_alerting" {
+  description = "Whether to enable alerting for job failures"
+  type        = bool
+  default     = true
+}
+
+variable "slack_channel" {
+  description = "Slack channel to send notifications to (e.g., '#1s-and-0s')"
+  type        = string
+}
+
+variable "slack_mention_users" {
+  description = "List of Slack users or groups to mention in alerts (e.g., ['@user', '@group'])"
+  type        = list(string)
+  default     = []
+}
+
+variable "alert_project_id" {
+  description = "GCP project ID where monitoring and alerting resources will be created (defaults to project_id)"
+  type        = string
+  default     = null
+}

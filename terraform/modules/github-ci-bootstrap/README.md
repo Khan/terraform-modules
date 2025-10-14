@@ -266,7 +266,8 @@ With dual service accounts, you can also conditionally run different Terraform o
     run: terraform plan
 
   - name: Terraform Apply (Write-Enabled Branches Only)
-    if: contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref)
+    if: contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), 
+      github.ref)
     run: terraform apply -auto-approve
 ```
 

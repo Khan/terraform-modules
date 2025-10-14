@@ -69,6 +69,13 @@ module "daily_data_processor" {
       version      = "latest"
     }
   ]
+
+  # Alerting is enabled by default
+  slack_channel        = var.slack_channel
+  slack_mention_users  = ["@oncall"]  # Optional: mention specific users/groups
+
+  # Optional: Use different project for alerting resources
+  alert_project_id = var.alert_project_id
 }
 
 # Output the job details
@@ -89,5 +96,14 @@ output "image_info" {
     image_digest = module.daily_data_processor_image.image_digest
     image_uri    = module.daily_data_processor_image.image_uri
     image_tag    = module.daily_data_processor_image.image_tag
+  }
+}
+
+# Output alerting information
+output "alerting_info" {
+  description = "Information about the alerting setup"
+  value = {
+    monitoring_notification_channel_name = module.daily_data_processor.monitoring_notification_channel_name
+    alert_policy_names                   = module.daily_data_processor.alert_policy_names
   }
 }

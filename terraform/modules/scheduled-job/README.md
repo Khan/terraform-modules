@@ -13,6 +13,7 @@ Creates a complete scheduled setup:
 - Storage bucket with lifecycle management
 - Secret Manager IAM bindings
 - Source code change detection
+- **Slack alerting** for job failures (optional)
 
 ## Quick Start
 
@@ -88,6 +89,10 @@ module "my_data_processor" {
       version      = "latest"
     }
   ]
+
+  # Enable Slack alerting for job failures (enabled by default)
+  slack_channel = "#channel-name"
+  slack_mention_users = ["@group-or-user"]
 }
 ```
 
@@ -253,6 +258,13 @@ module "data_processor" {
 - `job_args` - Command arguments ([])
 - `job_image` - Container image URL (required)
 
+### Alerting (optional)
+
+- `enable_alerting` - Whether to enable alerting for job failures (true)
+- `slack_channel` - Slack channel to send notifications to (e.g., "#1s-and-0s") (required when alerting enabled)
+- `slack_mention_users` - List of Slack users or groups to mention in alerts (e.g., ["@user", "@group"]) ([])
+- `alert_project_id` - GCP project ID where monitoring and alerting resources will be created (defaults to project_id) (null)
+
 ## Outputs
 
 - `resource_name` - Name of deployed function or job
@@ -262,6 +274,11 @@ module "data_processor" {
 - `pubsub_topic_name` - PubSub topic name (when `execution_type = "function"`)
 - `storage_bucket_name` - Storage bucket name
 - `execution_type` - The execution type used
+
+### Alerting Outputs (when `enable_alerting = true`)
+
+- `monitoring_notification_channel_name` - Name of the monitoring notification channel
+- `alert_policy_names` - Names of the monitoring alert policies
 
 ## Repository Structure
 
@@ -403,6 +420,74 @@ Or use Cloud Build directly:
 ```bash
 gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest ./jobs/your-job
 ```
+
+## Alerting
+
+The module supports optional Slack alerting for job failures. When enabled, it creates:
+
+- **Monitoring policies**: Cloud Monitoring alert policies for different failure scenarios
+- **Slack notification channel**: Direct integration with Slack using the Slack API token from Secret Manager
+
+**Note**: The module automatically fetches the Slack API token from Secret Manager in the `khan-academy` project (secret: `Slack__API_token_for_alertlib`). Ensure your Terraform service account has access to read this secret.
+
+### Enabling Alerting
+
+```hcl
+module "my_job_with_alerts" {
+  source = "git::https://github.com/Khan/terraform-modules.git//terraform/modules/scheduled-job?ref=v1.0.0"
+  
+  # ... other configuration ...
+  
+  # Alerting is enabled by default
+  slack_channel = "#my-team-channel"
+  slack_mention_users = ["@oncall", "@team-leads"]  # Optional: users/groups to mention
+  
+  # Optional: Use different project for alerting resources
+  alert_project_id = "my-monitoring-project"
+}
+```
+
+### What Gets Monitored
+
+When alerting is enabled, the module creates monitoring policies for:
+
+1. **Cloud Function failures** (when `execution_type = "function"`)
+
+   - Monitors `cloudfunctions.googleapis.com/function/execution_count` with `status="error"`
+   - Alerts immediately when any function execution fails
+   - Includes direct link to function logs in console
+
+2. **Cloud Run Job failures** (when `execution_type = "job"`)
+
+   - Monitors `run.googleapis.com/job/completed_task_attempt_count` and `failed_task_attempt_count`
+   - Alerts when tasks fail or don't complete within expected time
+   - Includes direct link to job logs in console
+
+### Slack Message Format
+
+The Slack notifications include:
+
+- Alert description with job/function name
+- Direct link to GCP Console logs for troubleshooting
+- Optional CC mentions for users/groups (configured via `slack_mention_users`)
+- Markdown-formatted for readability
+
+Example alert message:
+
+```
+The Cloud Function my-function has failed to execute. Check the function logs for more details.
+
+[View Function in Console](https://console.cloud.google.com/...)
+
+CC: @oncall @team-leads
+```
+
+### Security
+
+- Slack API token is fetched from Secret Manager in the `khan-academy` project
+- Token is stored securely in the monitoring notification channel's sensitive labels
+- All alerting resources are created in the specified project (or same project as the job)
+- Requires Secret Manager read permissions on the `Slack__API_token_for_alertlib` secret
 
 ## Common Cron Patterns
 

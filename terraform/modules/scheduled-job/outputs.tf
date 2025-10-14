@@ -53,4 +53,18 @@ output "region" {
 output "execution_type" {
   description = "The execution type used (function or job)"
   value       = var.execution_type
-} 
+}
+
+# Alerting outputs
+output "monitoring_notification_channel_name" {
+  description = "Name of the monitoring notification channel (when alerting is enabled)"
+  value       = var.enable_alerting ? google_monitoring_notification_channel.slack_channel[0].name : null
+}
+
+output "alert_policy_names" {
+  description = "Names of the monitoring alert policies (when alerting is enabled)"
+  value = var.enable_alerting ? {
+    function_failure  = var.execution_type == "function" ? google_monitoring_alert_policy.function_failure[0].display_name : null
+    job_failure       = var.execution_type == "job" ? google_monitoring_alert_policy.job_failure[0].display_name : null
+  } : null
+}

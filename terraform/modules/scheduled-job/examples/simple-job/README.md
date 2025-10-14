@@ -9,6 +9,7 @@ This example demonstrates how to use the scheduled-job module to create a Cloud 
 - Service account with appropriate permissions
 - Container image built automatically using Cloud Build
 - Secret Manager IAM bindings
+- Slack alerting for job failures (enabled by default)
 
 ## Key differences from Cloud Functions
 
@@ -25,6 +26,7 @@ This example demonstrates how to use the scheduled-job module to create a Cloud 
    ```bash
    export TF_VAR_project_id="your-gcp-project"
    export TF_VAR_secrets_project_id="your-secrets-project"
+   export TF_VAR_slack_channel="#my-team-channel"
    ```
 
 2. Initialize and apply:
@@ -71,6 +73,10 @@ module "daily_data_processor" {
   job_command = ["python", "processor.py"]
   job_args    = []            # Additional arguments if needed
   
+  # Alerting is enabled by default
+  slack_channel = var.slack_channel
+  slack_mention_users = ["@oncall"]  # Optional
+  
   # ... other configuration
 }
 ```
@@ -92,3 +98,17 @@ The job code in `job-code/processor.py` is a simple Python script that:
 - **Branch-based Caching**: Cloud Build caches layers based on branch names for faster builds.
 - Jobs are triggered via HTTP calls to the Cloud Run Jobs API, not via PubSub like Cloud Functions.
 - Jobs can run for longer periods and have more resources than Cloud Functions.
+
+## Alerting
+
+This example includes Slack alerting for job failures by default. The alerting system:
+
+- Monitors job execution failures and task completion issues
+- Sends notifications to your specified Slack channel
+- Uses Slack API token from Secret Manager (`khan-academy` project)
+- Provides detailed failure information with direct links to logs
+- Supports mentioning specific users/groups via `slack_mention_users`
+
+**Note**: Requires read access to the `Slack__API_token_for_alertlib` secret in the `khan-academy` project.
+
+To disable alerting, set `enable_alerting = false` in the module configuration.
