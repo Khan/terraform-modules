@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-    - uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
+    - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v1
       with:
         terraform_version: ${{ env.TERRAFORM_VERSION }}
     - name: Initialize Terraform
@@ -35,7 +35,7 @@ jobs:
       run: terraform fmt -check -recursive
       working-directory: terraform
       continue-on-error: true
-    - uses: terraform-linters/setup-tflint@ae78205cfffec9e8d93fd2b3115c7e9d3166d4b6 # v5
+    - uses: terraform-linters/setup-tflint@acd1575d3c037258ce5b2dd01379dc49ce24c6b7 # v5
       name: Setup TFLint
       with:
         tflint_version: 'v${{ env.TFLINT_VERSION }}'
