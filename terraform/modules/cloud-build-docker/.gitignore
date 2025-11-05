@@ -1,0 +1,3 @@
+# Digest cache files (generated during terraform apply)
+.digests/
+*.txt

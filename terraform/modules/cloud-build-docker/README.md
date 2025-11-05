@@ -2,6 +2,16 @@
 
 A reusable Terraform module for building Docker images using Google Cloud Build with branch-based caching and digest tracking.
 
+## ⚠️ Important: Build Behavior
+
+**This module uses `null_resource` instead of `data "external"`, which means:**
+- ✅ **Builds run ONLY during `terraform apply`** (not during `terraform plan`)
+- ✅ **Saves time and money** - no duplicate builds during plan phase
+- ✅ **Faster plan operations** - plans complete in seconds instead of minutes
+- ⚠️ **Plan shows changes** until first apply completes (digest file doesn't exist yet)
+
+This is the correct behavior - Docker images should only be built when you're actually deploying, not when you're previewing changes.
+
 ## Features
 
 - **Cloud Build Integration**: Uses Google Cloud Build for reliable, scalable Docker image building
@@ -11,6 +21,7 @@ A reusable Terraform module for building Docker images using Google Cloud Build 
 - **Flexible Dockerfile Support**: Supports custom Dockerfile names and locations
 - **Build Arguments**: Supports custom build arguments and base image digests
 - **Custom Configurations**: Allows custom Cloud Build configurations
+- **Apply-Only Builds**: Builds run only during apply phase, not during plan (saves time and cost)
 
 ## Quick Start
 
@@ -87,7 +98,7 @@ module "data_processor" {
   context_path     = "./processor"
   project_id       = var.project_id
   image_tag_suffix = "latest"
-  
+
   build_args = {
     NODE_ENV = "production"
     VERSION  = "1.2.3"
@@ -250,7 +261,7 @@ CMD ["npm", "start"]
 ```hcl
 module "app_image" {
   source = "git::https://github.com/Khan/terraform-cloud-build-docker-module.git?ref=v1.0.0"
-  
+
   image_name       = "my-app"
   context_path     = "./app"
   project_id       = var.project_id
