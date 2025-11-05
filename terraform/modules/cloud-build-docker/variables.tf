@@ -39,3 +39,9 @@ variable "base_digest" {
   type        = string
   default     = "latest"
 }
+
+variable "build_trigger_hash" {
+  description = "Hash of source files to trigger rebuilds when code changes (optional)"
+  type        = string
+  default     = ""
+}

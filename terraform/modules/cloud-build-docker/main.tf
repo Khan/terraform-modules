@@ -35,11 +35,12 @@ locals {
 resource "null_resource" "image_build" {
   # Trigger rebuild when these change
   triggers = {
-    context_path     = var.context_path
-    dockerfile_path  = var.dockerfile_path
-    image_tag_suffix = var.image_tag_suffix
-    project_id       = var.project_id
-    base_digest      = var.base_digest
+    context_path       = var.context_path
+    dockerfile_path    = var.dockerfile_path
+    image_tag_suffix   = var.image_tag_suffix
+    project_id         = var.project_id
+    base_digest        = var.base_digest
+    build_trigger_hash = var.build_trigger_hash  # Content-based rebuild trigger
   }
 
   provisioner "local-exec" {
@@ -72,7 +73,9 @@ data "local_file" "image_digest" {
   # and we'll use the placeholder in locals
 }
 
-# Local value for digest (with fallback)
+# Local value for digest (with fallback to tag on first run)
 locals {
-  image_digest = try(trimspace(data.local_file.image_digest.content), "${local.image_uri}@sha256:placeholder")
+  # Use digest if file exists, otherwise use tag (Cloud Run will resolve to digest)
+  # This prevents deployment failures on first run while still using immutable references
+  image_digest = try(trimspace(data.local_file.image_digest.content), local.image_tag)
 }
