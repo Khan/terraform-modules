@@ -29,6 +29,20 @@ locals {
   image_uri    = "gcr.io/${var.project_id}/${var.image_name}"
   image_tag    = "${local.image_uri}:${var.image_tag_suffix}"
   digest_file  = "${path.module}/.digests/${var.project_id}_${var.image_name}_${var.image_tag_suffix}.txt"
+  digest_dir   = "${path.module}/.digests"
+}
+
+# Ensure digest file exists (create placeholder if missing)
+# This prevents data source errors on first run
+resource "null_resource" "ensure_digest_file" {
+  provisioner "local-exec" {
+    command = <<-EOT
+      mkdir -p ${local.digest_dir}
+      if [ ! -f ${local.digest_file} ]; then
+        echo "${local.image_tag}" > ${local.digest_file}
+      fi
+    EOT
+  }
 }
 
 # Build image using null_resource (runs ONLY during apply, not plan)
@@ -64,13 +78,14 @@ resource "null_resource" "image_build" {
   }
 }
 
-# Read digest from file (if exists, otherwise use placeholder)
+# Read digest from file
+# The ensure_digest_file resource guarantees the file exists before we try to read it
 data "local_file" "image_digest" {
-  depends_on = [null_resource.image_build]
-  filename   = local.digest_file
-
-  # If file doesn't exist yet (first run), this will fail gracefully
-  # and we'll use the placeholder in locals
+  depends_on = [
+    null_resource.ensure_digest_file,
+    null_resource.image_build
+  ]
+  filename = local.digest_file
 }
 
 # Local value for digest (with fallback to tag on first run)
