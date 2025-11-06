@@ -216,6 +216,7 @@ def build_image(
         print(f"Waiting for build to complete...", file=sys.stderr)
 
         # Wait for build to complete using 'gcloud builds wait'
+        # Stream output to stderr so we can see progress
         try:
             wait_result = subprocess.run(
                 [
@@ -226,20 +227,16 @@ def build_image(
                     f"--project={project_id}",
                 ],
                 check=True,
-                capture_output=True,
-                text=True,
+                stdout=sys.stderr,  # Stream to stderr so terraform sees it
+                stderr=sys.stderr,
             )
             print(f"Build completed", file=sys.stderr)
         except subprocess.CalledProcessError as e:
-            print(f"Build failed or wait command failed with exit code {e.returncode}", file=sys.stderr)
-            if e.stdout:
-                print(f"stdout:\n{e.stdout}", file=sys.stderr)
-            if e.stderr:
-                print(f"stderr:\n{e.stderr}", file=sys.stderr)
+            print(f"\nBuild wait command failed with exit code {e.returncode}", file=sys.stderr)
             print(f"\nTo view build logs:", file=sys.stderr)
             print(f"  gcloud builds log {build_id} --project={project_id}", file=sys.stderr)
             print(f"Or visit: https://console.cloud.google.com/cloud-build/builds/{build_id}?project={project_id}", file=sys.stderr)
-            raise RuntimeError(f"Build {build_id} failed or wait command failed")
+            raise RuntimeError(f"Build {build_id} wait command failed with exit code {e.returncode}")
 
         # Query the digest of the newly built image
         digest = get_image_digest(image_uri, image_tag_suffix, project_id)
