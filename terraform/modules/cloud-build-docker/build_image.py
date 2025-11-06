@@ -192,13 +192,22 @@ def build_image(
             text=True,
         )
 
-        # Extract build ID from async output
+        # Extract build ID from async output (table format)
+        # Expected format:
+        # ID                                    CREATE_TIME                DURATION  SOURCE  IMAGES  STATUS
+        # 4b1a6381-bdd5-477c-bd47-4eb376987d88  2025-11-06T07:11:53+00:00  -         ...     -       QUEUED
         build_id = None
-        for line in result.stdout.splitlines():
-            if "Created [" in line and "/builds/" in line:
-                # Extract ID from: Created [https://...googleapis.com/.../builds/BUILD_ID].
-                build_id = line.split("/builds/")[-1].rstrip("].").strip()
-                break
+        lines = result.stdout.splitlines()
+        for i, line in enumerate(lines):
+            # Find the header line (contains "ID" and "CREATE_TIME")
+            if "ID" in line and "CREATE_TIME" in line:
+                # Build ID is in the first column of the next line
+                if i + 1 < len(lines):
+                    data_line = lines[i + 1].strip()
+                    if data_line:
+                        # Extract first field (build ID)
+                        build_id = data_line.split()[0]
+                        break
 
         if not build_id:
             raise RuntimeError(f"Failed to extract build ID from output: {result.stdout}")
