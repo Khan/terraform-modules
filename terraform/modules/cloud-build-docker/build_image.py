@@ -172,9 +172,8 @@ def build_image(
         cloudbuild_config = os.path.join(script_dir, "cloudbuild.yml")
         
         # TODO(jwbron): Consider adding automatic GCS bucket creation with import support for existing buckets in terraform
-        # For long-running commands like gcloud builds submit, we need to stream output
-        # instead of capturing it to avoid buffer deadlock issues
-        print(f"+ gcloud builds submit {context_path} --config={cloudbuild_config} --project={project_id} --gcs-source-staging-dir=gs://{project_id}-cloudbuild-ci/staging --gcs-log-dir=gs://{project_id}-cloudbuild-ci/logs --substitutions={subs_str}", file=sys.stderr)
+        # Submit build asynchronously to avoid rate limit issues when running many parallel builds
+        print(f"Submitting build for {image_name}...", file=sys.stderr)
         result = subprocess.run(
             [
                 "gcloud",
@@ -186,12 +185,42 @@ def build_image(
                 f"--gcs-source-staging-dir=gs://{project_id}-cloudbuild-ci/staging",
                 f"--gcs-log-dir=gs://{project_id}-cloudbuild-ci/logs",
                 f"--substitutions={subs_str}",
+                "--async",  # Don't wait/poll - avoids rate limit issues
             ],
             check=True,
-            # Don't capture output - let it stream to avoid deadlock on large outputs
-            stdout=sys.stderr,
-            stderr=sys.stderr,
+            capture_output=True,
+            text=True,
         )
+
+        # Extract build ID from async output
+        build_id = None
+        for line in result.stdout.splitlines():
+            if "Created [" in line and "/builds/" in line:
+                # Extract ID from: Created [https://...googleapis.com/.../builds/BUILD_ID].
+                build_id = line.split("/builds/")[-1].rstrip("].").strip()
+                break
+
+        if not build_id:
+            raise RuntimeError(f"Failed to extract build ID from output: {result.stdout}")
+
+        print(f"Build submitted: {build_id}", file=sys.stderr)
+        print(f"Waiting for build to complete...", file=sys.stderr)
+
+        # Wait for build to complete using 'gcloud builds wait'
+        wait_result = subprocess.run(
+            [
+                "gcloud",
+                "builds",
+                "wait",
+                build_id,
+                f"--project={project_id}",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        print(f"Build completed", file=sys.stderr)
 
         # Query the digest of the newly built image
         digest = get_image_digest(image_uri, image_tag_suffix, project_id)
