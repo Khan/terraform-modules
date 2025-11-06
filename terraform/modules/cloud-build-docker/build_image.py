@@ -31,6 +31,8 @@ def run_command(cmd, **kwargs):
 def get_image_digest(image_uri, tag, project_id):
     """Query the digest of an existing image."""
     try:
+        # Use list-tags to get all tags, then filter in Python for exact match
+        # This avoids issues where "tags:latest" matches both "latest" and "latest-builder"
         result = run_command(
             [
                 "gcloud",
@@ -38,18 +40,22 @@ def get_image_digest(image_uri, tag, project_id):
                 "images",
                 "list-tags",
                 image_uri,
-                "--filter",
-                f"tags:{tag}",
-                "--limit",
-                "1",
-                "--format=get(digest)",
+                "--format=json",
                 "--project",
                 project_id,
             ]
         )
-        digest = result.stdout.strip()
-        if digest:
-            return f"{image_uri}@{digest}"
+
+        import json
+        images = json.loads(result.stdout)
+
+        # Find the image with the exact tag match
+        for image in images:
+            if tag in image.get("tags", []):
+                digest = image.get("digest")
+                if digest:
+                    return f"{image_uri}@{digest}"
+
         return None
     except subprocess.CalledProcessError:
         return None
@@ -58,6 +64,7 @@ def get_image_digest(image_uri, tag, project_id):
 def check_cache_tag_exists(image_uri, cache_tag, project_id):
     """Check if a cache tag exists for the given image."""
     try:
+        # Get all tags and filter for exact match to avoid partial matches
         result = run_command(
             [
                 "gcloud",
@@ -65,16 +72,21 @@ def check_cache_tag_exists(image_uri, cache_tag, project_id):
                 "images",
                 "list-tags",
                 image_uri,
-                "--filter",
-                f"tags:{cache_tag}",
-                "--limit",
-                "1",
-                "--format=get(digest)",
+                "--format=json",
                 "--project",
                 project_id,
             ]
         )
-        return bool(result.stdout.strip())
+
+        import json
+        images = json.loads(result.stdout)
+
+        # Check if any image has this exact tag
+        for image in images:
+            if cache_tag in image.get("tags", []):
+                return True
+
+        return False
     except subprocess.CalledProcessError:
         return False
 
