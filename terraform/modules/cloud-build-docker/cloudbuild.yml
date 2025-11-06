@@ -1,36 +1,77 @@
-# Cloud Build configuration with branch-based caching.
-# Enables caching by pulling the previous image with a given "cache tag", if it exists, and reusing its layers.
+# Cloud Build configuration with multi-stage caching support.
+# Enables caching by pulling previous images for both builder and final stages,
+# allowing Docker to reuse layers from multi-stage builds.
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  id: Pull previous image
+  id: Pull cache images
   entrypoint: bash
   args:
   - -c
   - |
-    echo "Attempting to pull cache image: $_IMAGE_NAME:$_CACHE_TAG"
-    docker pull "$_IMAGE_NAME:$_CACHE_TAG" || echo "Cache image not found, will build without cache"
+    echo "Attempting to pull cache images for multi-stage build..."
+
+    # Pull final image cache
+    echo "Pulling final image: $_IMAGE_NAME:$_CACHE_TAG"
+    docker pull "$_IMAGE_NAME:$_CACHE_TAG" || echo "Final cache image not found"
+
+    # Pull builder stage cache (for multi-stage builds)
+    echo "Pulling builder stage: $_IMAGE_NAME:$_CACHE_TAG-builder"
+    docker pull "$_IMAGE_NAME:$_CACHE_TAG-builder" || echo "Builder cache image not found"
+
 - name: 'gcr.io/cloud-builders/docker'
   id: Build image
   entrypoint: bash
   args:
   - -c
   - |
+    # Build with cache from both stages (if available)
+    CACHE_ARGS=""
+
+    # Check if builder cache exists
+    if docker image inspect "$_IMAGE_NAME:$_CACHE_TAG-builder" > /dev/null 2>&1; then
+      echo "Found builder cache: $_IMAGE_NAME:$_CACHE_TAG-builder"
+      CACHE_ARGS="$CACHE_ARGS --cache-from=$_IMAGE_NAME:$_CACHE_TAG-builder"
+    fi
+
+    # Check if final cache exists
     if docker image inspect "$_IMAGE_NAME:$_CACHE_TAG" > /dev/null 2>&1; then
-      echo "Using cache from $_IMAGE_NAME:$_CACHE_TAG"
-      docker build --tag="$_IMAGE_TAG" --cache-from="$_IMAGE_NAME:$_CACHE_TAG" --build-arg BASE_IMAGE="$_BASE_DIGEST" .
+      echo "Found final cache: $_IMAGE_NAME:$_CACHE_TAG"
+      CACHE_ARGS="$CACHE_ARGS --cache-from=$_IMAGE_NAME:$_CACHE_TAG"
+    fi
+
+    if [ -n "$CACHE_ARGS" ]; then
+      echo "Building with cache: $CACHE_ARGS"
+      docker build --tag="$_IMAGE_TAG" $CACHE_ARGS --build-arg BASE_IMAGE="$_BASE_DIGEST" .
     else
-      echo "No cache found for $_IMAGE_NAME:$_CACHE_TAG, building without --cache-from"
+      echo "No cache found, building from scratch"
       docker build --tag="$_IMAGE_TAG" --build-arg BASE_IMAGE="$_BASE_DIGEST" .
     fi
+
 - name: 'gcr.io/cloud-builders/docker'
-  id: Tag cache
+  id: Tag and push builder cache
+  entrypoint: bash
+  args:
+  - -c
+  - |
+    # Extract and push the builder stage for future caching
+    # This works by building just the builder stage and tagging it
+    echo "Building and tagging builder stage for cache..."
+    docker build --target=builder --tag="$_IMAGE_NAME:$_CACHE_TAG-builder" --build-arg BASE_IMAGE="$_BASE_DIGEST" .
+    echo "Pushing builder cache: $_IMAGE_NAME:$_CACHE_TAG-builder"
+    docker push "$_IMAGE_NAME:$_CACHE_TAG-builder"
+  waitFor: ['Build image']
+
+- name: 'gcr.io/cloud-builders/docker'
+  id: Tag final cache
   entrypoint: bash
   args: ['-c', 'docker tag "$_IMAGE_TAG" "$_IMAGE_NAME:$_CACHE_TAG"']
   waitFor: ['Build image']
+
 - name: 'gcr.io/cloud-builders/docker'
-  id: Push cache
+  id: Push final cache
   entrypoint: bash
   args: ['-c', 'docker push "$_IMAGE_NAME:$_CACHE_TAG"']
-  waitFor: ['Tag cache']
+  waitFor: ['Tag final cache']
+
 images:
 - '$_IMAGE_TAG'

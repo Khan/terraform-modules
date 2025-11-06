@@ -1,0 +1,1 @@
+gcr.io/khan-academy-staging/admin@sha256:05e1e2e8a7853510f42b61054ea987c25aea11a0391444d33302b609a8462a57
