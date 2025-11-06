@@ -216,20 +216,30 @@ def build_image(
         print(f"Waiting for build to complete...", file=sys.stderr)
 
         # Wait for build to complete using 'gcloud builds wait'
-        wait_result = subprocess.run(
-            [
-                "gcloud",
-                "builds",
-                "wait",
-                build_id,
-                f"--project={project_id}",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-
-        print(f"Build completed", file=sys.stderr)
+        try:
+            wait_result = subprocess.run(
+                [
+                    "gcloud",
+                    "builds",
+                    "wait",
+                    build_id,
+                    f"--project={project_id}",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            print(f"Build completed", file=sys.stderr)
+        except subprocess.CalledProcessError as e:
+            print(f"Build failed or wait command failed with exit code {e.returncode}", file=sys.stderr)
+            if e.stdout:
+                print(f"stdout:\n{e.stdout}", file=sys.stderr)
+            if e.stderr:
+                print(f"stderr:\n{e.stderr}", file=sys.stderr)
+            print(f"\nTo view build logs:", file=sys.stderr)
+            print(f"  gcloud builds log {build_id} --project={project_id}", file=sys.stderr)
+            print(f"Or visit: https://console.cloud.google.com/cloud-build/builds/{build_id}?project={project_id}", file=sys.stderr)
+            raise RuntimeError(f"Build {build_id} failed or wait command failed")
 
         # Query the digest of the newly built image
         digest = get_image_digest(image_uri, image_tag_suffix, project_id)
