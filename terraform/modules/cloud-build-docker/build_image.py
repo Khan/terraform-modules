@@ -172,7 +172,10 @@ def build_image(
         cloudbuild_config = os.path.join(script_dir, "cloudbuild.yml")
         
         # TODO(jwbron): Consider adding automatic GCS bucket creation with import support for existing buckets in terraform
-        run_command(
+        # For long-running commands like gcloud builds submit, we need to stream output
+        # instead of capturing it to avoid buffer deadlock issues
+        print(f"+ gcloud builds submit {context_path} --config={cloudbuild_config} --project={project_id} --gcs-source-staging-dir=gs://{project_id}-cloudbuild-ci/staging --gcs-log-dir=gs://{project_id}-cloudbuild-ci/logs --substitutions={subs_str}", file=sys.stderr)
+        result = subprocess.run(
             [
                 "gcloud",
                 "builds",
@@ -183,7 +186,11 @@ def build_image(
                 f"--gcs-source-staging-dir=gs://{project_id}-cloudbuild-ci/staging",
                 f"--gcs-log-dir=gs://{project_id}-cloudbuild-ci/logs",
                 f"--substitutions={subs_str}",
-            ]
+            ],
+            check=True,
+            # Don't capture output - let it stream to avoid deadlock on large outputs
+            stdout=sys.stderr,
+            stderr=sys.stderr,
         )
 
         # Query the digest of the newly built image
