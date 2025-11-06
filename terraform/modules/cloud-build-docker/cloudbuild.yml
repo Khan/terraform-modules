@@ -30,18 +30,18 @@ steps:
     # Check if builder cache exists
     if docker image inspect "$_IMAGE_NAME:$_CACHE_TAG-builder" > /dev/null 2>&1; then
       echo "Found builder cache: $_IMAGE_NAME:$_CACHE_TAG-builder"
-      CACHE_ARGS="$CACHE_ARGS --cache-from=$_IMAGE_NAME:$_CACHE_TAG-builder"
+      CACHE_ARGS="$$CACHE_ARGS --cache-from=$_IMAGE_NAME:$_CACHE_TAG-builder"
     fi
 
     # Check if final cache exists
     if docker image inspect "$_IMAGE_NAME:$_CACHE_TAG" > /dev/null 2>&1; then
       echo "Found final cache: $_IMAGE_NAME:$_CACHE_TAG"
-      CACHE_ARGS="$CACHE_ARGS --cache-from=$_IMAGE_NAME:$_CACHE_TAG"
+      CACHE_ARGS="$$CACHE_ARGS --cache-from=$_IMAGE_NAME:$_CACHE_TAG"
     fi
 
-    if [ -n "$CACHE_ARGS" ]; then
-      echo "Building with cache: $CACHE_ARGS"
-      docker build --tag="$_IMAGE_TAG" $CACHE_ARGS --build-arg BASE_IMAGE="$_BASE_DIGEST" .
+    if [ -n "$$CACHE_ARGS" ]; then
+      echo "Building with cache: $$CACHE_ARGS"
+      docker build --tag="$_IMAGE_TAG" $$CACHE_ARGS --build-arg BASE_IMAGE="$_BASE_DIGEST" .
     else
       echo "No cache found, building from scratch"
       docker build --tag="$_IMAGE_TAG" --build-arg BASE_IMAGE="$_BASE_DIGEST" .
