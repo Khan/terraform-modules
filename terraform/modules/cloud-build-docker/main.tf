@@ -28,6 +28,7 @@ data "external" "image_build" {
     project_id       = var.project_id
     image_tag_suffix = var.image_tag_suffix
     base_digest      = var.base_digest
+    region           = var.region
   }
 
   # Trigger rebuild when any of these change

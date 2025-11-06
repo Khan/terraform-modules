@@ -116,6 +116,7 @@ def build_image(
     project_id,
     image_tag_suffix,
     base_digest="latest",
+    region="us-central1",
 ):
     """Build a Docker image via Cloud Build and return its digest."""
 
@@ -186,7 +187,7 @@ def build_image(
         
         # TODO(jwbron): Consider adding automatic GCS bucket creation with import support for existing buckets in terraform
         # Submit build asynchronously to avoid rate limit issues when running many parallel builds
-        print(f"Submitting build for {image_name}...", file=sys.stderr)
+        print(f"Submitting build for {image_name} in region {region}...", file=sys.stderr)
         result = subprocess.run(
             [
                 "gcloud",
@@ -195,6 +196,7 @@ def build_image(
                 context_path,
                 f"--config={cloudbuild_config}",
                 f"--project={project_id}",
+                f"--region={region}",
                 f"--gcs-source-staging-dir=gs://{project_id}-cloudbuild-ci/staging",
                 f"--gcs-log-dir=gs://{project_id}-cloudbuild-ci/logs",
                 f"--substitutions={subs_str}",
@@ -246,6 +248,7 @@ def build_image(
                         "describe",
                         build_id,
                         f"--project={project_id}",
+                        f"--region={region}",
                         "--format=get(status)",
                     ]
                 )
@@ -301,6 +304,7 @@ def main():
         project_id = input_data["project_id"]
         image_tag_suffix = input_data["image_tag_suffix"]
         base_digest = input_data.get("base_digest", "latest")
+        region = input_data.get("region", "us-central1")
 
         # Validate that image_tag_suffix is not empty
         if not image_tag_suffix or image_tag_suffix.strip() == "":
@@ -314,6 +318,7 @@ def main():
             project_id=project_id,
             image_tag_suffix=image_tag_suffix,
             base_digest=base_digest,
+            region=region,
         )
 
         # Return JSON output for Terraform
