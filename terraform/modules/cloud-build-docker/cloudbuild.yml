@@ -16,7 +16,7 @@ steps:
   id: Build image with BuildKit
   entrypoint: bash
   env:
-    - 'DOCKER_BUILDKIT=1'
+  - 'DOCKER_BUILDKIT=1'
   args:
   - -c
   - |
