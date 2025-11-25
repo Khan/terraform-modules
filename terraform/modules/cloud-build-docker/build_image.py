@@ -31,8 +31,8 @@ def run_command(cmd, **kwargs):
 def get_image_digest(image_uri, tag, project_id):
     """Query the digest of an existing image."""
     try:
-        # Use list-tags to get all tags, then filter in Python for exact match
-        # This avoids issues where "tags:latest" matches both "latest" and "latest-builder"
+        # Use tags={tag} for exact match filtering (not tags:{tag} which is substring match)
+        # See: gcloud topic filters
         result = run_command(
             [
                 "gcloud",
@@ -40,22 +40,18 @@ def get_image_digest(image_uri, tag, project_id):
                 "images",
                 "list-tags",
                 image_uri,
-                "--format=json",
+                "--filter",
+                f"tags={tag}",
+                "--limit",
+                "1",
+                "--format=get(digest)",
                 "--project",
                 project_id,
             ]
         )
-
-        import json
-        images = json.loads(result.stdout)
-
-        # Find the image with the exact tag match
-        for image in images:
-            if tag in image.get("tags", []):
-                digest = image.get("digest")
-                if digest:
-                    return f"{image_uri}@{digest}"
-
+        digest = result.stdout.strip()
+        if digest:
+            return f"{image_uri}@{digest}"
         return None
     except subprocess.CalledProcessError:
         return None
@@ -64,7 +60,8 @@ def get_image_digest(image_uri, tag, project_id):
 def check_cache_tag_exists(image_uri, cache_tag, project_id):
     """Check if a cache tag exists for the given image."""
     try:
-        # Get all tags and filter for exact match to avoid partial matches
+        # Use tags={cache_tag} for exact match filtering (not tags:{tag} which is substring match)
+        # See: gcloud topic filters
         result = run_command(
             [
                 "gcloud",
@@ -72,21 +69,16 @@ def check_cache_tag_exists(image_uri, cache_tag, project_id):
                 "images",
                 "list-tags",
                 image_uri,
-                "--format=json",
+                "--filter",
+                f"tags={cache_tag}",
+                "--limit",
+                "1",
+                "--format=get(digest)",
                 "--project",
                 project_id,
             ]
         )
-
-        import json
-        images = json.loads(result.stdout)
-
-        # Check if any image has this exact tag
-        for image in images:
-            if cache_tag in image.get("tags", []):
-                return True
-
-        return False
+        return bool(result.stdout.strip())
     except subprocess.CalledProcessError:
         return False
 
@@ -201,29 +193,15 @@ def build_image(
                 f"--gcs-log-dir=gs://{project_id}-cloudbuild-ci/logs",
                 f"--substitutions={subs_str}",
                 "--async",  # Don't wait/poll - avoids rate limit issues
+                "--format=get(id)",  # Output just the build ID for easier parsing
             ],
             check=True,
             capture_output=True,
             text=True,
         )
 
-        # Extract build ID from async output (table format)
-        # Expected format:
-        # ID                                    CREATE_TIME                DURATION  SOURCE  IMAGES  STATUS
-        # 4b1a6381-bdd5-477c-bd47-4eb376987d88  2025-11-06T07:11:53+00:00  -         ...     -       QUEUED
-        build_id = None
-        lines = result.stdout.splitlines()
-        for i, line in enumerate(lines):
-            # Find the header line (contains "ID" and "CREATE_TIME")
-            if "ID" in line and "CREATE_TIME" in line:
-                # Build ID is in the first column of the next line
-                if i + 1 < len(lines):
-                    data_line = lines[i + 1].strip()
-                    if data_line:
-                        # Extract first field (build ID)
-                        build_id = data_line.split()[0]
-                        break
-
+        # Extract build ID from async output
+        build_id = result.stdout.strip()
         if not build_id:
             raise RuntimeError(f"Failed to extract build ID from output: {result.stdout}")
 
