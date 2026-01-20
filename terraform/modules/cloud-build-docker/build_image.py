@@ -11,7 +11,6 @@ import json
 import os
 import subprocess
 import sys
-import time
 
 
 def run_command(cmd, **kwargs):
@@ -178,9 +177,9 @@ def build_image(
         cloudbuild_config = os.path.join(script_dir, "cloudbuild.yml")
         
         # TODO(jwbron): Consider adding automatic GCS bucket creation with import support for existing buckets in terraform
-        # Submit build asynchronously to avoid rate limit issues when running many parallel builds
+        # Use --polling-interval to reduce API calls and avoid rate limits when running many parallel builds
         print(f"Submitting build for {image_name} in region {region}...", file=sys.stderr)
-        result = subprocess.run(
+        run_command(
             [
                 "gcloud",
                 "builds",
@@ -192,65 +191,9 @@ def build_image(
                 f"--gcs-source-staging-dir=gs://{project_id}-cloudbuild-ci/staging",
                 f"--gcs-log-dir=gs://{project_id}-cloudbuild-ci/logs",
                 f"--substitutions={subs_str}",
-                "--async",  # Don't wait/poll - avoids rate limit issues
-                "--format=get(id)",  # Output just the build ID for easier parsing
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
+                "--polling-interval=60",  # Reduce API calls to avoid rate limits
+            ]
         )
-
-        # Extract build ID from async output
-        build_id = result.stdout.strip()
-        if not build_id:
-            raise RuntimeError(f"Failed to extract build ID from output: {result.stdout}")
-
-        print(f"Build submitted: {build_id}", file=sys.stderr)
-        print(f"Waiting for build to complete...", file=sys.stderr)
-
-        # Poll build status using 'gcloud builds describe'
-        # Use exponential backoff to reduce API calls and avoid rate limits
-        poll_interval = 10  # Start with 10 seconds
-        max_interval = 60   # Cap at 60 seconds
-        elapsed = 0
-
-        while True:
-            time.sleep(poll_interval)
-            elapsed += poll_interval
-
-            try:
-                result = run_command(
-                    [
-                        "gcloud",
-                        "builds",
-                        "describe",
-                        build_id,
-                        f"--project={project_id}",
-                        f"--region={region}",
-                        "--format=get(status)",
-                    ]
-                )
-                status = result.stdout.strip()
-
-                if status == "SUCCESS":
-                    print(f"Build completed successfully after {elapsed}s", file=sys.stderr)
-                    break
-                elif status in ["FAILURE", "TIMEOUT", "CANCELLED", "INTERNAL_ERROR"]:
-                    print(f"\nBuild {status} after {elapsed}s", file=sys.stderr)
-                    print(f"\nTo view build logs:", file=sys.stderr)
-                    print(f"  gcloud builds log {build_id} --project={project_id}", file=sys.stderr)
-                    print(f"Or visit: https://console.cloud.google.com/cloud-build/builds/{build_id}?project={project_id}", file=sys.stderr)
-                    raise RuntimeError(f"Build {build_id} {status}")
-                elif status in ["QUEUED", "WORKING"]:
-                    print(f"Build status: {status} (elapsed: {elapsed}s)", file=sys.stderr)
-                    # Increase poll interval (exponential backoff, capped)
-                    poll_interval = min(poll_interval * 1.5, max_interval)
-                else:
-                    print(f"Unknown build status: {status}", file=sys.stderr)
-
-            except subprocess.CalledProcessError as e:
-                print(f"\nFailed to check build status: {e}", file=sys.stderr)
-                raise RuntimeError(f"Failed to check status for build {build_id}")
 
         # Query the digest of the newly built image
         digest = get_image_digest(image_uri, image_tag_suffix, project_id)
