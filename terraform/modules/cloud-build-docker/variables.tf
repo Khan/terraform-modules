@@ -39,3 +39,9 @@ variable "base_digest" {
   type        = string
   default     = "latest"
 }
+
+variable "region" {
+  description = "The GCP region where Cloud Build jobs will run"
+  type        = string
+  default     = "us-central1"
+}

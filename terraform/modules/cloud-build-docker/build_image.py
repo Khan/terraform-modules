@@ -30,6 +30,8 @@ def run_command(cmd, **kwargs):
 def get_image_digest(image_uri, tag, project_id):
     """Query the digest of an existing image."""
     try:
+        # Use tags={tag} for exact match filtering (not tags:{tag} which is substring match)
+        # See: gcloud topic filters
         result = run_command(
             [
                 "gcloud",
@@ -38,7 +40,7 @@ def get_image_digest(image_uri, tag, project_id):
                 "list-tags",
                 image_uri,
                 "--filter",
-                f"tags:{tag}",
+                f"tags={tag}",
                 "--limit",
                 "1",
                 "--format=get(digest)",
@@ -57,6 +59,8 @@ def get_image_digest(image_uri, tag, project_id):
 def check_cache_tag_exists(image_uri, cache_tag, project_id):
     """Check if a cache tag exists for the given image."""
     try:
+        # Use tags={cache_tag} for exact match filtering (not tags:{tag} which is substring match)
+        # See: gcloud topic filters
         result = run_command(
             [
                 "gcloud",
@@ -65,7 +69,7 @@ def check_cache_tag_exists(image_uri, cache_tag, project_id):
                 "list-tags",
                 image_uri,
                 "--filter",
-                f"tags:{cache_tag}",
+                f"tags={cache_tag}",
                 "--limit",
                 "1",
                 "--format=get(digest)",
@@ -103,6 +107,7 @@ def build_image(
     project_id,
     image_tag_suffix,
     base_digest="latest",
+    region="us-central1",
 ):
     """Build a Docker image via Cloud Build and return its digest."""
 
@@ -172,6 +177,8 @@ def build_image(
         cloudbuild_config = os.path.join(script_dir, "cloudbuild.yml")
         
         # TODO(jwbron): Consider adding automatic GCS bucket creation with import support for existing buckets in terraform
+        # Use --polling-interval to reduce API calls and avoid rate limits when running many parallel builds
+        print(f"Submitting build for {image_name} in region {region}...", file=sys.stderr)
         run_command(
             [
                 "gcloud",
@@ -180,9 +187,11 @@ def build_image(
                 context_path,
                 f"--config={cloudbuild_config}",
                 f"--project={project_id}",
+                f"--region={region}",
                 f"--gcs-source-staging-dir=gs://{project_id}-cloudbuild-ci/staging",
                 f"--gcs-log-dir=gs://{project_id}-cloudbuild-ci/logs",
                 f"--substitutions={subs_str}",
+                "--polling-interval=60",  # Reduce API calls to avoid rate limits
             ]
         )
 
@@ -216,6 +225,7 @@ def main():
         project_id = input_data["project_id"]
         image_tag_suffix = input_data["image_tag_suffix"]
         base_digest = input_data.get("base_digest", "latest")
+        region = input_data.get("region", "us-central1")
 
         # Validate that image_tag_suffix is not empty
         if not image_tag_suffix or image_tag_suffix.strip() == "":
@@ -229,6 +239,7 @@ def main():
             project_id=project_id,
             image_tag_suffix=image_tag_suffix,
             base_digest=base_digest,
+            region=region,
         )
 
         # Return JSON output for Terraform

@@ -1,36 +1,48 @@
-# Cloud Build configuration with branch-based caching.
-# Enables caching by pulling the previous image with a given "cache tag", if it exists, and reusing its layers.
+# Cloud Build configuration with BuildKit inline cache for multi-stage builds.
+# BuildKit is required to properly cache intermediate stages in multi-stage builds.
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  id: Pull previous image
+  id: Pull cache images
   entrypoint: bash
   args:
   - -c
   - |
-    echo "Attempting to pull cache image: $_IMAGE_NAME:$_CACHE_TAG"
-    docker pull "$_IMAGE_NAME:$_CACHE_TAG" || echo "Cache image not found, will build without cache"
+    echo "Attempting to pull cache image..."
+    # With BuildKit inline cache, we only need to pull the final image
+    # which contains metadata about all intermediate stages
+    docker pull "$_IMAGE_NAME:$_CACHE_TAG" || echo "Cache image not found, building from scratch"
+
 - name: 'gcr.io/cloud-builders/docker'
-  id: Build image
+  id: Build image with BuildKit
   entrypoint: bash
+  env:
+  - 'DOCKER_BUILDKIT=1'
   args:
   - -c
   - |
-    if docker image inspect "$_IMAGE_NAME:$_CACHE_TAG" > /dev/null 2>&1; then
-      echo "Using cache from $_IMAGE_NAME:$_CACHE_TAG"
-      docker build --tag="$_IMAGE_TAG" --cache-from="$_IMAGE_NAME:$_CACHE_TAG" --build-arg BASE_IMAGE="$_BASE_DIGEST" .
-    else
-      echo "No cache found for $_IMAGE_NAME:$_CACHE_TAG, building without --cache-from"
-      docker build --tag="$_IMAGE_TAG" --build-arg BASE_IMAGE="$_BASE_DIGEST" .
-    fi
+    echo "Building with BuildKit and inline cache..."
+
+    # Build with BuildKit inline cache
+    # --cache-from pulls cache metadata from previous build
+    # --build-arg BUILDKIT_INLINE_CACHE=1 embeds cache metadata in the image
+    docker build \
+      --tag="$_IMAGE_TAG" \
+      --cache-from="$_IMAGE_NAME:$_CACHE_TAG" \
+      --build-arg BUILDKIT_INLINE_CACHE=1 \
+      --build-arg BASE_IMAGE="$_BASE_DIGEST" \
+      .
+
 - name: 'gcr.io/cloud-builders/docker'
-  id: Tag cache
+  id: Tag cache image
   entrypoint: bash
   args: ['-c', 'docker tag "$_IMAGE_TAG" "$_IMAGE_NAME:$_CACHE_TAG"']
-  waitFor: ['Build image']
+  waitFor: ['Build image with BuildKit']
+
 - name: 'gcr.io/cloud-builders/docker'
-  id: Push cache
+  id: Push cache image
   entrypoint: bash
   args: ['-c', 'docker push "$_IMAGE_NAME:$_CACHE_TAG"']
-  waitFor: ['Tag cache']
+  waitFor: ['Tag cache image']
+
 images:
 - '$_IMAGE_TAG'
