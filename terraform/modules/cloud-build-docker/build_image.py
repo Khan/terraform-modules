@@ -108,8 +108,13 @@ def build_image(
     image_tag_suffix,
     base_digest="latest",
     region="us-central1",
+    platforms="linux/amd64",
 ):
-    """Build a Docker image via Cloud Build and return its digest."""
+    """Build a Docker image via Cloud Build and return its digest.
+
+    For multi-platform builds (when platforms contains multiple architectures),
+    docker buildx is used for efficient cross-compilation.
+    """
 
     # Construct image URIs
     image_uri = f"gcr.io/{project_id}/{image_name}"
@@ -168,13 +173,21 @@ def build_image(
             "_IMAGE_TAG": image_tag,
             "_BASE_DIGEST": base_digest,
             "_CACHE_TAG": effective_cache_tag,  # Use effective cache tag (with fallback to latest)
+            "_PLATFORMS": platforms,
         }
         subs_str = ",".join(f"{k}={v}" for k, v in substitutions.items())
 
         # Submit to Cloud Build
-        # Get the directory where this script is located to find cloudbuild.yml
+        # Get the directory where this script is located to find cloudbuild config
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        cloudbuild_config = os.path.join(script_dir, "cloudbuild.yml")
+
+        # Use buildx config for multi-platform builds
+        is_multiplatform = "," in platforms
+        if is_multiplatform:
+            cloudbuild_config = os.path.join(script_dir, "cloudbuild-buildx.yml")
+            print(f"Using buildx for multi-platform build: {platforms}", file=sys.stderr)
+        else:
+            cloudbuild_config = os.path.join(script_dir, "cloudbuild.yml")
         
         # TODO(jwbron): Consider adding automatic GCS bucket creation with import support for existing buckets in terraform
         # Use --polling-interval to reduce API calls and avoid rate limits when running many parallel builds
@@ -226,6 +239,7 @@ def main():
         image_tag_suffix = input_data["image_tag_suffix"]
         base_digest = input_data.get("base_digest", "latest")
         region = input_data.get("region", "us-central1")
+        platforms = input_data.get("platforms", "linux/amd64")
 
         # Validate that image_tag_suffix is not empty
         if not image_tag_suffix or image_tag_suffix.strip() == "":
@@ -240,6 +254,7 @@ def main():
             image_tag_suffix=image_tag_suffix,
             base_digest=base_digest,
             region=region,
+            platforms=platforms,
         )
 
         # Return JSON output for Terraform

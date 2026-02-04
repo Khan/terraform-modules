@@ -29,6 +29,8 @@ data "external" "image_build" {
     image_tag_suffix = var.image_tag_suffix
     base_digest      = var.base_digest
     region           = var.region
+    # Pass platforms as comma-separated string for the external script
+    platforms        = join(",", var.platforms)
   }
 
   # Trigger rebuild when any of these change

@@ -5,6 +5,7 @@ A reusable Terraform module for building Docker images using Google Cloud Build 
 ## Features
 
 - **Cloud Build Integration**: Uses Google Cloud Build for reliable, scalable Docker image building
+- **Multi-Platform Builds**: Supports building for multiple architectures (amd64, arm64) via docker buildx
 - **Branch-based Caching**: Optimizes build times by caching layers based on branch names
 - **Cache Fallback**: Automatically falls back to "latest" tag if the specified cache tag doesn't exist, ensuring we always have some level of caching
 - **Digest Tracking**: Returns full image digests for precise versioning in Terraform
@@ -109,6 +110,24 @@ module "secure_app" {
 }
 ```
 
+### Multi-Platform Build (amd64 + arm64)
+
+```hcl
+module "cross_platform_app" {
+  source = "git::https://github.com/Khan/terraform-cloud-build-docker-module.git?ref=v1.0.0"
+
+  image_name       = "cross-platform-app"
+  context_path     = "./app"
+  project_id       = var.project_id
+  image_tag_suffix = "latest"
+
+  # Build for both amd64 and arm64 platforms
+  platforms = ["linux/amd64", "linux/arm64"]
+}
+```
+
+> **Note**: Multi-platform builds use docker buildx. For Go services with multi-stage Dockerfiles, cross-compilation is used (Go compiler runs on amd64 but produces binaries for each target platform via `TARGETARCH`/`TARGETOS` build args), which is much faster than QEMU emulation.
+
 ## Requirements & Inputs
 
 ### Required
@@ -122,9 +141,8 @@ module "secure_app" {
 
 - `dockerfile_path` - Path to the Dockerfile relative to context_path ("Dockerfile")
 - `base_digest` - Base image digest for build args ("latest")
-- `cloud_build_config` - Custom Cloud Build config file (null)
-- `build_args` - Additional build arguments ({})
-- `cache_enabled` - Enable branch-based caching (true)
+- `region` - GCP region for Cloud Build ("us-central1")
+- `platforms` - Target platforms for multi-arch builds (["linux/amd64"]). Use ["linux/amd64", "linux/arm64"] for cross-platform builds.
 
 ## Outputs
 

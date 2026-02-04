@@ -45,3 +45,14 @@ variable "region" {
   type        = string
   default     = "us-central1"
 }
+
+variable "platforms" {
+  description = "Target platforms for multi-arch builds (e.g., ['linux/amd64', 'linux/arm64']). When multiple platforms are specified, docker buildx is used for cross-platform builds."
+  type        = list(string)
+  default     = ["linux/amd64"]
+
+  validation {
+    condition     = length(var.platforms) > 0
+    error_message = "At least one platform must be specified."
+  }
+}

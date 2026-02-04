@@ -1,0 +1,34 @@
+# Cloud Build configuration for multi-platform builds using docker buildx.
+# This config is used when multiple platforms are specified (e.g., linux/amd64,linux/arm64).
+# Uses efficient Go cross-compilation via TARGETARCH/TARGETOS build args.
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  id: Setup buildx
+  entrypoint: bash
+  args:
+  - -c
+  - |
+    echo "Setting up docker buildx..."
+    docker buildx create --name multiarch-builder --use
+    docker buildx inspect --bootstrap
+
+- name: 'gcr.io/cloud-builders/docker'
+  id: Build and push multi-arch image
+  entrypoint: bash
+  args:
+  - -c
+  - |
+    echo "Building multi-platform image for: $_PLATFORMS"
+
+    # buildx builds must push directly (can't load multi-arch images locally)
+    # --cache-from and --cache-to use registry-based caching
+    docker buildx build \
+      --platform="$_PLATFORMS" \
+      --tag="$_IMAGE_TAG" \
+      --tag="$_IMAGE_NAME:$_CACHE_TAG" \
+      --build-arg BASE_IMAGE="$_BASE_DIGEST" \
+      --push \
+      .
+  waitFor: ['Setup buildx']
+
+# No 'images' section needed - buildx pushes directly during build
