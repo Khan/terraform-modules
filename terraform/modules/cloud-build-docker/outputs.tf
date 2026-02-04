@@ -1,17 +1,17 @@
 # Outputs for the Cloud Build Docker module
 
 output "image_digest" {
-  description = "Full image digest (e.g., gcr.io/project/image@sha256:abc123...)"
+  description = "Full image digest (e.g., us-central1-docker.pkg.dev/project/repo/image@sha256:abc123...)"
   value       = local.image_digest
 }
 
 output "image_uri" {
-  description = "Image URI without tag (e.g., gcr.io/project/image)"
+  description = "Image URI without tag (e.g., us-central1-docker.pkg.dev/project/repo/image)"
   value       = local.image_uri
 }
 
 output "image_tag" {
-  description = "Image URI with tag (e.g., gcr.io/project/image:latest)"
+  description = "Image URI with tag (e.g., us-central1-docker.pkg.dev/project/repo/image:latest)"
   value       = local.image_tag
 }
 

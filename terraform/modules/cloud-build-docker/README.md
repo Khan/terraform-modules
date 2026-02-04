@@ -1,6 +1,6 @@
 # terraform-cloud-build-docker-module
 
-A reusable Terraform module for building Docker images using Google Cloud Build with branch-based caching and digest tracking.
+A reusable Terraform module for building Docker images using Google Cloud Build with Artifact Registry, branch-based caching, and digest tracking.
 
 ## Features
 
@@ -23,6 +23,8 @@ module "my_app_image" {
   dockerfile_path  = "Dockerfile"
   project_id       = "my-gcp-project"
   image_tag_suffix = "latest"
+  region           = "us-central1"
+  repository       = "docker-images"  # Artifact Registry repository (must exist)
 }
 
 # Use the built image digest
@@ -122,15 +124,14 @@ module "secure_app" {
 
 - `dockerfile_path` - Path to the Dockerfile relative to context_path ("Dockerfile")
 - `base_digest` - Base image digest for build args ("latest")
-- `cloud_build_config` - Custom Cloud Build config file (null)
-- `build_args` - Additional build arguments ({})
-- `cache_enabled` - Enable branch-based caching (true)
+- `region` - GCP region for Cloud Build and Artifact Registry ("us-central1")
+- `repository` - Artifact Registry repository name ("docker-images")
 
 ## Outputs
 
-- `image_digest` - Full image digest (e.g., gcr.io/project/image@sha256:abc123...)
-- `image_uri` - Image URI without tag (e.g., gcr.io/project/image)
-- `image_tag` - Image URI with tag (e.g., gcr.io/project/image:latest)
+- `image_digest` - Full image digest (e.g., us-central1-docker.pkg.dev/project/repo/image@sha256:abc123...)
+- `image_uri` - Image URI without tag (e.g., us-central1-docker.pkg.dev/project/repo/image)
+- `image_tag` - Image URI with tag (e.g., us-central1-docker.pkg.dev/project/repo/image:latest)
 - `image_name` - Name of the built image
 - `image_tag_suffix` - Tag suffix used for the image
 - `project_id` - Project ID where the image was built
@@ -196,8 +197,9 @@ your-app-repo/
 ### GCP Setup
 
 - Google Cloud Build API enabled
-- Container Registry or Artifact Registry access
-- Appropriate IAM permissions for Cloud Build
+- Artifact Registry API enabled
+- An Artifact Registry Docker repository created in the target region (e.g., `gcloud artifacts repositories create docker-images --repository-format=docker --location=us-central1`)
+- Appropriate IAM permissions for Cloud Build and Artifact Registry
 
 ### Local Setup
 
@@ -282,8 +284,9 @@ resource "google_cloud_run_v2_service" "app" {
 ### Permission Issues
 
 - Verify Cloud Build service account has necessary permissions
-- Check Container Registry/Artifact Registry access
+- Check Artifact Registry access (Cloud Build service account needs `roles/artifactregistry.writer`)
 - Ensure GCS buckets exist and are accessible
+- Ensure the Artifact Registry repository exists in the specified region
 
 ### Cache Issues
 

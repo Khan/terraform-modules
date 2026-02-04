@@ -24,6 +24,8 @@ module "web_app_image" {
   context_path     = "./app"
   project_id       = var.project_id
   image_tag_suffix = "latest"
+  region           = var.region
+  repository       = "docker-images"  # Artifact Registry repository (must exist)
 }
 
 # Output the built image information

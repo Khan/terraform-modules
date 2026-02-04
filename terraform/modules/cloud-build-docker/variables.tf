@@ -41,7 +41,13 @@ variable "base_digest" {
 }
 
 variable "region" {
-  description = "The GCP region where Cloud Build jobs will run"
+  description = "The GCP region where Cloud Build jobs will run and where Artifact Registry is located"
   type        = string
   default     = "us-central1"
+}
+
+variable "repository" {
+  description = "Artifact Registry repository name (must already exist)"
+  type        = string
+  default     = "docker-images"
 }

@@ -29,6 +29,7 @@ data "external" "image_build" {
     image_tag_suffix = var.image_tag_suffix
     base_digest      = var.base_digest
     region           = var.region
+    repository       = var.repository
   }
 
   # Trigger rebuild when any of these change
@@ -43,6 +44,6 @@ data "external" "image_build" {
 # Local values for easy access
 locals {
   image_digest = data.external.image_build.result.digest
-  image_uri    = "gcr.io/${var.project_id}/${var.image_name}"
+  image_uri    = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repository}/${var.image_name}"
   image_tag    = "${local.image_uri}:${var.image_tag_suffix}"
 }

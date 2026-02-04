@@ -28,22 +28,18 @@ def run_command(cmd, **kwargs):
 
 
 def get_image_digest(image_uri, tag, project_id):
-    """Query the digest of an existing image."""
+    """Query the digest of an existing image from Artifact Registry."""
     try:
-        # Use tags={tag} for exact match filtering (not tags:{tag} which is substring match)
-        # See: gcloud topic filters
+        # Use gcloud artifacts docker images describe to get the digest
         result = run_command(
             [
                 "gcloud",
-                "container",
+                "artifacts",
+                "docker",
                 "images",
-                "list-tags",
-                image_uri,
-                "--filter",
-                f"tags={tag}",
-                "--limit",
-                "1",
-                "--format=get(digest)",
+                "describe",
+                f"{image_uri}:{tag}",
+                "--format=get(image_summary.digest)",
                 "--project",
                 project_id,
             ]
@@ -57,22 +53,20 @@ def get_image_digest(image_uri, tag, project_id):
 
 
 def check_cache_tag_exists(image_uri, cache_tag, project_id):
-    """Check if a cache tag exists for the given image."""
+    """Check if a cache tag exists for the given image in Artifact Registry."""
     try:
-        # Use tags={cache_tag} for exact match filtering (not tags:{tag} which is substring match)
-        # See: gcloud topic filters
+        # Use gcloud artifacts docker tags list to check if the tag exists
         result = run_command(
             [
                 "gcloud",
-                "container",
-                "images",
-                "list-tags",
+                "artifacts",
+                "docker",
+                "tags",
+                "list",
                 image_uri,
                 "--filter",
-                f"tags={cache_tag}",
-                "--limit",
-                "1",
-                "--format=get(digest)",
+                f"tag={cache_tag}",
+                "--format=get(tag)",
                 "--project",
                 project_id,
             ]
@@ -108,11 +102,12 @@ def build_image(
     image_tag_suffix,
     base_digest="latest",
     region="us-central1",
+    repository="docker-images",
 ):
     """Build a Docker image via Cloud Build and return its digest."""
 
-    # Construct image URIs
-    image_uri = f"gcr.io/{project_id}/{image_name}"
+    # Construct image URIs using Artifact Registry format
+    image_uri = f"{region}-docker.pkg.dev/{project_id}/{repository}/{image_name}"
     image_tag = f"{image_uri}:{image_tag_suffix}"
 
     print(f"Building image: {image_name} with tag: {image_tag_suffix}", file=sys.stderr)
@@ -226,6 +221,7 @@ def main():
         image_tag_suffix = input_data["image_tag_suffix"]
         base_digest = input_data.get("base_digest", "latest")
         region = input_data.get("region", "us-central1")
+        repository = input_data.get("repository", "docker-images")
 
         # Validate that image_tag_suffix is not empty
         if not image_tag_suffix or image_tag_suffix.strip() == "":
@@ -240,6 +236,7 @@ def main():
             image_tag_suffix=image_tag_suffix,
             base_digest=base_digest,
             region=region,
+            repository=repository,
         )
 
         # Return JSON output for Terraform

@@ -1,12 +1,25 @@
 # Simple Build Example
 
-This example demonstrates the basic usage of the Cloud Build Docker module to build a simple web application.
+This example demonstrates the basic usage of the Cloud Build Docker module to build a simple web application using Artifact Registry.
 
 ## What this example creates
 
 - A Docker image built using Google Cloud Build
+- Image stored in Artifact Registry
 - A simple nginx-based web application
 - Image digest output for use in other Terraform resources
+
+## Prerequisites
+
+Before running this example, ensure you have:
+
+1. An Artifact Registry Docker repository created:
+   ```bash
+   gcloud artifacts repositories create docker-images \
+     --repository-format=docker \
+     --location=us-central1 \
+     --project=your-gcp-project
+   ```
 
 ## Usage
 
@@ -38,6 +51,8 @@ module "web_app_image" {
   context_path     = "./app"
   project_id       = var.project_id
   image_tag_suffix = "latest"
+  region           = var.region
+  repository       = "docker-images"  # Artifact Registry repository (must exist)
 }
 ```
 
@@ -56,9 +71,9 @@ After running `terraform apply`, you'll get:
 
 ```hcl
 image_info = {
-  image_digest = "gcr.io/your-project/simple-web-app@sha256:abc123..."
-  image_uri    = "gcr.io/your-project/simple-web-app"
-  image_tag    = "gcr.io/your-project/simple-web-app:latest"
+  image_digest = "us-central1-docker.pkg.dev/your-project/docker-images/simple-web-app@sha256:abc123..."
+  image_uri    = "us-central1-docker.pkg.dev/your-project/docker-images/simple-web-app"
+  image_tag    = "us-central1-docker.pkg.dev/your-project/docker-images/simple-web-app:latest"
 }
 ```
 
