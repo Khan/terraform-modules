@@ -27,6 +27,31 @@ def run_command(cmd, **kwargs):
         raise
 
 
+def verify_repository_exists(repository, region, project_id):
+    """Verify that the Artifact Registry repository exists."""
+    try:
+        run_command(
+            [
+                "gcloud",
+                "artifacts",
+                "repositories",
+                "describe",
+                repository,
+                f"--location={region}",
+                f"--project={project_id}",
+            ]
+        )
+    except subprocess.CalledProcessError:
+        raise RuntimeError(
+            f"Artifact Registry repository '{repository}' not found in {region}.\n"
+            f"Create it with:\n"
+            f"  gcloud artifacts repositories create {repository} \\\n"
+            f"    --repository-format=docker \\\n"
+            f"    --location={region} \\\n"
+            f"    --project={project_id}"
+        )
+
+
 def get_image_digest(image_uri, tag, project_id):
     """Query the digest of an existing image from Artifact Registry."""
     try:
@@ -105,6 +130,9 @@ def build_image(
     repository="docker-images",
 ):
     """Build a Docker image via Cloud Build and return its digest."""
+
+    # Verify the Artifact Registry repository exists before proceeding
+    verify_repository_exists(repository, region, project_id)
 
     # Construct image URIs using Artifact Registry format
     image_uri = f"{region}-docker.pkg.dev/{project_id}/{repository}/{image_name}"
