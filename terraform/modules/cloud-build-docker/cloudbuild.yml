@@ -32,17 +32,11 @@ steps:
       --build-arg BASE_IMAGE="$_BASE_DIGEST" \
       .
 
-- name: 'gcr.io/cloud-builders/docker'
-  id: Tag cache image
-  entrypoint: bash
-  args: ['-c', 'docker tag "$_IMAGE_TAG" "$_IMAGE_NAME:$_CACHE_TAG"']
-  waitFor: ['Build image with BuildKit']
-
-- name: 'gcr.io/cloud-builders/docker'
-  id: Push cache image
-  entrypoint: bash
-  args: ['-c', 'docker push "$_IMAGE_NAME:$_CACHE_TAG"']
-  waitFor: ['Tag cache image']
-
+# Only push the build's own tag ($_IMAGE_TAG). Do NOT also push under
+# $_IMAGE_NAME:$_CACHE_TAG: that tag is chosen as a *read* fallback by
+# build_image.py (it falls back to "latest" when the requested tag does
+# not yet exist), and pushing the build under it would clobber whatever
+# is currently at that tag. In practice this would let a first-time PR
+# build overwrite the master image at :latest with its own content.
 images:
 - '$_IMAGE_TAG'
