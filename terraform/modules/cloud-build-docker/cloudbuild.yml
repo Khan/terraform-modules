@@ -25,11 +25,20 @@ steps:
     # Build with BuildKit inline cache
     # --cache-from pulls cache metadata from previous build
     # --build-arg BUILDKIT_INLINE_CACHE=1 embeds cache metadata in the image
+    #
+    # SOURCE_DATE_EPOCH makes the resulting image digest reproducible. Without
+    # it, the Dockerfile frontend stamps the image config (the `created` field
+    # and every `history[].created` entry) with the current wall-clock time, so
+    # two builds of byte-identical content still produce different manifest
+    # digests. Anything pinning by digest (e.g. a Cloud Run job) then sees
+    # spurious "updates" on every rebuild. Pinning the epoch to a constant (0)
+    # clamps those timestamps so the digest changes only when content changes.
     docker build \
       --tag="$_IMAGE_TAG" \
       --cache-from="$_IMAGE_NAME:$_CACHE_TAG" \
       --build-arg BUILDKIT_INLINE_CACHE=1 \
       --build-arg BASE_IMAGE="$_BASE_DIGEST" \
+      --build-arg SOURCE_DATE_EPOCH=0 \
       .
 
 # Only push the build's own tag ($_IMAGE_TAG). Do NOT also push under
