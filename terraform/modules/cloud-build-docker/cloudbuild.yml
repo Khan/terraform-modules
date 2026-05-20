@@ -1,42 +1,47 @@
-# Cloud Build configuration with BuildKit inline cache for multi-stage builds.
-# BuildKit is required to properly cache intermediate stages in multi-stage builds.
+# Cloud Build configuration: reproducible Docker image builds.
+#
+# Builds with `docker buildx` (BuildKit) using the docker-container driver,
+# which is required for the image exporter's `rewrite-timestamp` option.
+#
+# Why reproducible digests matter: the digest this build produces is pinned
+# directly into downstream resources (e.g. a Cloud Run job/service). If the
+# digest changes on a rebuild that didn't actually change image content,
+# every consumer sees spurious "updates" and drift. BuildKit by default
+# stamps the image config, the per-step `history` entries, and file mtimes
+# inside layers with wall-clock time, so byte-identical content yields a
+# different digest on every build.
+#
+# Three settings together make the digest a pure function of content:
+#   - SOURCE_DATE_EPOCH    clamps the config + history timestamps
+#   - rewrite-timestamp    clamps file mtimes inside the layer blobs
+#   - --provenance/--sbom  disabled; attestations embed build metadata
+#                          (timestamps, build IDs) that is non-deterministic
+#
+# Caching: layers are read from $_IMAGE_NAME:$_CACHE_TAG (build_image.py
+# falls back to "latest" when the requested tag does not yet exist) and the
+# cache is written inline into the image pushed under $_IMAGE_TAG. Only
+# $_IMAGE_TAG is ever pushed, so a build can never clobber another tag.
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  id: Pull cache images
+  id: Build and push image
   entrypoint: bash
   args:
   - -c
   - |
-    echo "Attempting to pull cache image..."
-    # With BuildKit inline cache, we only need to pull the final image
-    # which contains metadata about all intermediate stages
-    docker pull "$_IMAGE_NAME:$_CACHE_TAG" || echo "Cache image not found, building from scratch"
+    set -e
 
-- name: 'gcr.io/cloud-builders/docker'
-  id: Build image with BuildKit
-  entrypoint: bash
-  env:
-  - 'DOCKER_BUILDKIT=1'
-  args:
-  - -c
-  - |
-    echo "Building with BuildKit and inline cache..."
+    # The docker-container driver runs BuildKit in a container. It is
+    # required for the image exporter's rewrite-timestamp option; the
+    # default "docker" driver does not support it.
+    docker buildx create --name reproducible --driver docker-container --use
 
-    # Build with BuildKit inline cache
-    # --cache-from pulls cache metadata from previous build
-    # --build-arg BUILDKIT_INLINE_CACHE=1 embeds cache metadata in the image
-    docker build \
-      --tag="$_IMAGE_TAG" \
-      --cache-from="$_IMAGE_NAME:$_CACHE_TAG" \
-      --build-arg BUILDKIT_INLINE_CACHE=1 \
+    docker buildx build \
+      --builder reproducible \
       --build-arg BASE_IMAGE="$_BASE_DIGEST" \
+      --build-arg SOURCE_DATE_EPOCH=0 \
+      --provenance=false \
+      --sbom=false \
+      --cache-from type=registry,ref="$_IMAGE_NAME:$_CACHE_TAG" \
+      --cache-to type=inline \
+      --output type=image,name="$_IMAGE_TAG",push=true,rewrite-timestamp=true \
       .
-
-# Only push the build's own tag ($_IMAGE_TAG). Do NOT also push under
-# $_IMAGE_NAME:$_CACHE_TAG: that tag is chosen as a *read* fallback by
-# build_image.py (it falls back to "latest" when the requested tag does
-# not yet exist), and pushing the build under it would clobber whatever
-# is currently at that tag. In practice this would let a first-time PR
-# build overwrite the master image at :latest with its own content.
-images:
-- '$_IMAGE_TAG'
