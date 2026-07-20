@@ -52,6 +52,13 @@ locals {
   # Use provided bucket name or computed default
   terraform_state_bucket = coalesce(var.terraform_state_bucket, local.default_bucket_name)
 
+  # Compute default plans bucket name, mirroring the state bucket convention.
+  # Unlike the state bucket, this is always per-service: plan files contain
+  # the service's state (including sensitive values), so a bucket shared
+  # between services would let each service's CI read the others' state.
+  default_plans_bucket_name = replace("terraform-plans-${lower(local.github_org)}-${lower(local.github_repo)}-${lower(var.service_name)}", "_", "-")
+  terraform_plans_bucket    = coalesce(var.terraform_plans_bucket, local.default_plans_bucket_name)
+
   # Flatten target_projects into individual service permissions for read-write access
   project_service_permissions_rw = flatten([
     for project_id, config in var.target_projects : [
@@ -192,6 +199,46 @@ resource "google_storage_bucket_iam_member" "ci_state_bucket_legacy_reader_ro" {
   bucket = local.terraform_state_bucket
   role   = "roles/storage.legacyBucketReader"
   member = "serviceAccount:${google_service_account.github_ci_ro.email}"
+}
+
+# === TERRAFORM PLANS BUCKET ===
+
+# Bucket for the Terraform binary plan files produced by the
+# generate-terraform-plan GitHub action. A binary plan embeds a full copy of
+# the Terraform state, including sensitive values in cleartext, so plans are
+# stored here (access controlled, like the state bucket) instead of being
+# committed to the repository. Objects are keyed by commit SHA and deleted by
+# the apply-terraform-plan action after a successful apply; the lifecycle
+# rule cleans up plans that are never applied (e.g. superseded plan PRs).
+resource "google_storage_bucket" "terraform_plans" {
+  count = var.create_terraform_plans_bucket ? 1 : 0
+
+  name                        = local.terraform_plans_bucket
+  project                     = "khan-internal-services"
+  location                    = var.terraform_plans_bucket_location
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  lifecycle_rule {
+    condition {
+      age = var.terraform_plans_expiration_days
+    }
+    action {
+      type = "Delete"
+    }
+  }
+}
+
+# The read/write service account uploads plans (plan runs on the deploy
+# branch) and later downloads and deletes them (apply runs), so it needs full
+# object access. The read-only service account used for PR-branch plans never
+# touches this bucket, so it deliberately gets no grant.
+resource "google_storage_bucket_iam_member" "ci_plans_bucket_access_rw" {
+  count = var.create_terraform_plans_bucket ? 1 : 0
+
+  bucket = google_storage_bucket.terraform_plans[0].name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.github_ci_rw.email}"
 }
 
 # === SECRET MANAGER ===

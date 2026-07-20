@@ -58,6 +58,30 @@ variable "terraform_state_bucket" {
   default     = null
 }
 
+variable "create_terraform_plans_bucket" {
+  description = "Whether to create a GCS bucket for the Terraform binary plan files produced by the generate-terraform-plan GitHub action. A binary plan embeds a full copy of the Terraform state, including sensitive values, so plans are stored in this access-controlled bucket instead of being committed to the repository."
+  type        = bool
+  default     = true
+}
+
+variable "terraform_plans_bucket" {
+  description = "GCS bucket name for storing Terraform binary plan files (defaults to terraform-plans-{org}-{repo}-{service})"
+  type        = string
+  default     = null
+}
+
+variable "terraform_plans_bucket_location" {
+  description = "Location for the Terraform plans bucket"
+  type        = string
+  default     = "us-central1"
+}
+
+variable "terraform_plans_expiration_days" {
+  description = "Days after which objects in the Terraform plans bucket are deleted. This cleans up plans that are never applied (e.g. superseded plan PRs); applied plans are deleted by the apply-terraform-plan action itself."
+  type        = number
+  default     = 30
+}
+
 variable "secrets_project_id" {
   description = "The Google Cloud project ID where secrets are stored (defaults to khan-academy)"
   type        = string
