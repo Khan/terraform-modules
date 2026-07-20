@@ -45,8 +45,10 @@ module "culture_cron_terraform_ci" {
   service_name      = "culture-cron-prod"        # YOU choose this name: project + environment
   github_repository = "Khan/culture-cron"        # GitHub repo containing the Terraform code
   
-  # Configure which branches can use the write-enabled service account (defaults to main and master)
-  write_branch_patterns = ["main", "master"]
+  # Branches allowed to use the write-enabled service account. List only your
+  # repository's protected deploy branch; an unprotected branch name listed
+  # here can be created by anyone with push access and used to deploy.
+  write_branch_patterns = ["master"]
   
   # Target projects where this Terraform configuration deploys resources via CI
   target_projects = {
@@ -72,7 +74,7 @@ module "culture_cron_terraform_ci" {
 | `service_name`           | User-defined unique identifier for this Terraform configuration and environment (e.g., 'culture-cron-prod', 'webapp-staging') | `string`       | n/a                                |   yes    |
 | `github_repository`      | GitHub repository containing the Terraform configuration in format 'org/repo'                                                 | `string`       | n/a                                |   yes    |
 | `target_projects`        | Map of GCP projects where this Terraform configuration will deploy resources. Keys are project IDs.                           | `map(object)`  | `{}`                               |    no    |
-| `write_branch_patterns`  | List of branch patterns that are allowed to use the read/write service account (defaults to main and master)                  | `list(string)` | `["main", "master"]`               |    no    |
+| `write_branch_patterns`  | List of branch names allowed to impersonate the read/write service account; list only protected deploy branches               | `list(string)` | n/a                                |   yes    |
 | `terraform_state_bucket` | GCS bucket name for storing Terraform state for this configuration                                                            | `string`       | `terraform-{org}-{repo}-{service}` |    no    |
 | `secrets_project_id`     | Project ID where secrets needed by the Terraform configuration are stored                                                     | `string`       | `"khan-academy"`                   |    no    |
 | `secret_ids`             | List of secret IDs that the Terraform configuration needs access to                                                           | `list(string)` | `[]`                               |    no    |
@@ -124,7 +126,7 @@ The module always creates two service accounts with different permission levels:
 - **Service Account Name**: `{service_name}-ci`
 - **Permissions**: Full admin permissions for all specified services
 - **Access**: Can create, modify, and delete resources
-- **Branch Restriction**: Only works on branches specified in `write_branch_patterns` (defaults to `main` and `master`)
+- **Branch Restriction**: Only works on branches specified in `write_branch_patterns` (required; list only protected deploy branches)
 - **Use Case**: Production deployments and infrastructure changes
 
 #### Read-Only Service Account (Read-Only + Cloud Build)
@@ -151,12 +153,9 @@ The module always creates two service accounts with different permission levels:
 
 #### Branch Pattern Configuration
 
-The `write_branch_patterns` variable accepts exact branch names:
+The `write_branch_patterns` variable accepts exact branch names (e.g. `master`, `production`). It is required and has no default.
 
-- `main` - Matches the main branch
-- `master` - Matches the master branch
-- `production` - Matches a production branch
-- `staging` - Matches a staging branch
+**Security**: every branch listed here is a path to production, because a workflow on it can impersonate the read/write service account. List only branches that are protected in the GitHub repository, normally just the default branch. In particular, never list both `main` and `master`: whichever one your repository does not use is an ordinary, unprotected branch name that anyone with push access can create and use to deploy without review.
 
 **Note**: The read-only service account can be used by any branch in the repository since it's inherently safe (cannot make infrastructure changes). Only branches specified in `write_branch_patterns` can use the write-enabled service account for deployments.
 

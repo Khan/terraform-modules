@@ -31,8 +31,10 @@ module "culture_cron_bootstrap" {
   service_name      = "culture-cron-prod"
   github_repository = "Khan/culture-cron"
 
-  # Configure which branches can use the write-enabled service account (defaults to main and master)
-  write_branch_patterns = ["main", "master"]
+  # Branches allowed to use the write-enabled service account. List only your
+  # repository's protected deploy branch; an unprotected branch name listed
+  # here can be created by anyone with push access and used to deploy.
+  write_branch_patterns = ["master"]
 
   # Target projects - culture-cron deploys to khan-internal-services
   target_projects = {
