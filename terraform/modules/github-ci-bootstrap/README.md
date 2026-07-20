@@ -74,6 +74,10 @@ module "culture_cron_terraform_ci" {
 | `target_projects`        | Map of GCP projects where this Terraform configuration will deploy resources. Keys are project IDs.                           | `map(object)`  | `{}`                               |    no    |
 | `write_branch_patterns`  | List of branch patterns that are allowed to use the read/write service account (defaults to main and master)                  | `list(string)` | `["main", "master"]`               |    no    |
 | `terraform_state_bucket` | GCS bucket name for storing Terraform state for this configuration                                                            | `string`       | `terraform-{org}-{repo}-{service}` |    no    |
+| `create_terraform_plans_bucket` | Whether to create a bucket for binary plan files produced by the generate-terraform-plan GitHub action                 | `bool`         | `true`                             |    no    |
+| `terraform_plans_bucket` | GCS bucket name for storing Terraform binary plan files                                                                       | `string`       | `terraform-plans-{org}-{repo}-{service}` | no |
+| `terraform_plans_bucket_location` | Location for the Terraform plans bucket                                                                              | `string`       | `"us-central1"`                    |    no    |
+| `terraform_plans_expiration_days` | Days after which plan objects are deleted (cleans up plans that are never applied)                                   | `number`       | `30`                               |    no    |
 | `secrets_project_id`     | Project ID where secrets needed by the Terraform configuration are stored                                                     | `string`       | `"khan-academy"`                   |    no    |
 | `secret_ids`             | List of secret IDs that the Terraform configuration needs access to                                                           | `list(string)` | `[]`                               |    no    |
 
@@ -114,6 +118,17 @@ If `terraform_state_bucket` is not specified, the module automatically generates
 - **Example**: `Khan/Mobile_App` + `mobile_app_prod` → `terraform-khan-mobile-app-mobile-app-prod`
 
 This ensures each Terraform setup gets its own isolated state bucket while maintaining consistent, predictable naming that complies with GCS bucket naming requirements.
+
+### Terraform Plans Bucket
+
+By default the module also creates a bucket for the binary plan files produced by the `generate-terraform-plan` GitHub action (Khan/actions). A binary plan embeds a full copy of the Terraform state, including sensitive values in cleartext, so plans live in this access-controlled bucket instead of being committed to the repository:
+
+- **Naming**: `terraform-plans-{org}-{repo}-{service}` (same normalization as the state bucket), overridable via `terraform_plans_bucket`
+- **Isolation**: always per-service, never shared, since plan files contain that service's state
+- **Access**: only the read/write service account gets object access (`roles/storage.objectAdmin`); the read-only account gets none
+- **Hygiene**: uniform bucket-level access, public access prevention enforced, and a lifecycle rule deleting objects after `terraform_plans_expiration_days` (plans that are applied get deleted by the apply-terraform-plan action immediately)
+
+Pass the bucket name (the `terraform_plans_bucket` output) as the `plan_bucket` input to the `generate-terraform-plan` and `apply-terraform-plan` actions. Set `create_terraform_plans_bucket = false` if this Terraform setup does not use those actions.
 
 ### Dual Service Account Configuration
 
@@ -220,6 +235,7 @@ Each `service_name` gets its own isolated:
 | `workload_identity_provider_rw` | Full resource name of the Workload Identity provider (write-enabled branches)             |
 | `workload_identity_provider_ro` | Full resource name of the Workload Identity provider (read-only, available to any branch) |
 | `terraform_state_bucket`        | The GCS bucket name used for Terraform state (computed or provided)                       |
+| `terraform_plans_bucket`        | The GCS bucket holding binary Terraform plan files awaiting apply (null if not created)   |
 | `service_name`                  | The unique identifier for this Terraform configuration and environment                    |
 | `target_projects`               | Map of target projects configured                                                         |
 | `write_branch_patterns`         | List of branch patterns that are allowed to use the read/write service account            |
