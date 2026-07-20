@@ -50,6 +50,11 @@ output "terraform_state_bucket" {
   value       = local.terraform_state_bucket
 }
 
+output "terraform_plans_bucket" {
+  description = "The GCS bucket holding binary Terraform plan files awaiting apply (null when create_terraform_plans_bucket is false)"
+  value       = var.create_terraform_plans_bucket ? google_storage_bucket.terraform_plans[0].name : null
+}
+
 output "service_name" {
   description = "The unique identifier for this Terraform configuration and environment managed in CI"
   value       = var.service_name
