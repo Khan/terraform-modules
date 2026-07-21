@@ -202,6 +202,12 @@ variable "enable_alerting" {
   default     = true
 }
 
+variable "notification_channel_ids" {
+  description = "Full resource names of pre-created Cloud Monitoring notification channels (projects/PROJECT/notificationChannels/ID) for failure alerts. Strongly preferred over the default: when empty, the module creates a Slack channel itself by reading the alertlib token with a data source, which persists the token value into Terraform state and any saved plan files. Pre-create the channel once per project (e.g. via the console's Slack OAuth flow, which never handles the token in Terraform) and pass its name here."
+  type        = list(string)
+  default     = []
+}
+
 variable "slack_channel" {
   description = "Slack channel to send notifications to (e.g., '#1s-and-0s')"
   type        = string
