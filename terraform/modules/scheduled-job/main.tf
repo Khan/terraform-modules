@@ -3,12 +3,15 @@
 
 # Required providers
 terraform {
-  required_version = ">= 1.3.0"
+  # 1.11+ for write-only arguments (1.10 introduced ephemeral resources).
+  required_version = ">= 1.11.0"
 
   required_providers {
     google = {
+      # 7.19.0 added the write-only sensitive_labels variants
+      # (auth_token_wo) on google_monitoring_notification_channel.
       source  = "hashicorp/google"
-      version = ">= 6.0.0"
+      version = ">= 7.19.0"
     }
     archive = {
       source  = "hashicorp/archive"
@@ -288,15 +291,13 @@ resource "google_cloud_scheduler_job" "job_scheduler" {
 
 # Alerting resources (only created when enable_alerting is true)
 
-# DEPRECATED token-based channel creation, used only when
-# notification_channel_ids is empty. Reading the Slack token with a data
-# source persists the token VALUE into Terraform state (state stores the full
-# data-source response, including secret_data), and from there into every
-# saved plan file. Prefer passing pre-created channel IDs via
-# notification_channel_ids; this path exists for backward compatibility and
-# will be removed in a future major version.
-data "google_secret_manager_secret_version" "slack_token" {
-  count = var.enable_alerting && length(var.notification_channel_ids) == 0 ? 1 : 0
+# Read the Slack API token ephemerally: the value is available to this run at
+# plan/apply time but is never persisted to Terraform state or saved plan
+# files. A regular data source would store its full response, including
+# secret_data, in both; that is how this token was exposed by the
+# committed-tfplan incident.
+ephemeral "google_secret_manager_secret_version" "slack_token" {
+  count = var.enable_alerting ? 1 : 0
 
   project = "khan-academy"
   secret  = "Slack__API_token_for_alertlib"
@@ -304,22 +305,16 @@ data "google_secret_manager_secret_version" "slack_token" {
 
 locals {
   alert_project_id = var.alert_project_id != null ? var.alert_project_id : var.project_id
-  slack_auth_token = var.enable_alerting && length(var.notification_channel_ids) == 0 ? data.google_secret_manager_secret_version.slack_token[0].secret_data : null
   slack_cc_mention = length(var.slack_mention_users) > 0 ? "\n\nCC: ${join(" ", var.slack_mention_users)}" : ""
   
-  # Channels the alert policies notify: pre-created channels when provided,
-  # otherwise the deprecated module-managed channel.
-  alert_notification_channels = length(var.notification_channel_ids) > 0 ? var.notification_channel_ids : [google_monitoring_notification_channel.slack_channel[0].name]
-
   # Console URLs for functions and jobs
   function_console_url = "https://console.cloud.google.com/run/detail/${var.region}/${var.job_name}/observability/logs?project=${var.project_id}"
   job_console_url      = "https://console.cloud.google.com/run/jobs/detail/${var.region}/${var.job_name}/observability/logs?project=${var.project_id}"
 }
 
-# Monitoring notification channel for Slack (DEPRECATED path, see above;
-# skipped entirely when notification_channel_ids is provided)
+# Monitoring notification channel for Slack
 resource "google_monitoring_notification_channel" "slack_channel" {
-  count = var.enable_alerting && length(var.notification_channel_ids) == 0 ? 1 : 0
+  count = var.enable_alerting ? 1 : 0
 
   project      = local.alert_project_id
   display_name = "${var.job_name} Slack Alerts"
@@ -330,7 +325,13 @@ resource "google_monitoring_notification_channel" "slack_channel" {
   }
 
   sensitive_labels {
-    auth_token = local.slack_auth_token
+    # Write-only: the token is sent to the Monitoring API but never stored in
+    # Terraform state or plan files. The ephemeral read above re-resolves the
+    # latest secret version on each run; the _wo_version counter controls
+    # when the API value is actually rewritten, so bump slack_token_rotation
+    # after rotating the secret.
+    auth_token_wo         = ephemeral.google_secret_manager_secret_version.slack_token[0].secret_data
+    auth_token_wo_version = var.slack_token_rotation
   }
 }
 
@@ -370,7 +371,7 @@ resource "google_monitoring_alert_policy" "function_failure" {
     }
   }
 
-  notification_channels = local.alert_notification_channels
+  notification_channels = [google_monitoring_notification_channel.slack_channel[0].name]
 
   documentation {
     content   = "The Cloud Function ${var.job_name} has failed to execute. Check the function logs for more details.\n\n[View Function in Console](${local.function_console_url})${local.slack_cc_mention}"
@@ -414,7 +415,7 @@ resource "google_monitoring_alert_policy" "job_failure" {
     }
   }
 
-  notification_channels = local.alert_notification_channels
+  notification_channels = [google_monitoring_notification_channel.slack_channel[0].name]
 
   documentation {
     content   = "The Cloud Run Job ${var.job_name} has failed to execute or complete successfully. Check the job logs for more details.\n\n[View Job in Console](${local.job_console_url})${local.slack_cc_mention}"

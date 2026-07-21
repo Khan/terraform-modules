@@ -261,8 +261,8 @@ module "data_processor" {
 ### Alerting (optional)
 
 - `enable_alerting` - Whether to enable alerting for job failures (true)
-- `notification_channel_ids` - Full resource names of pre-created notification channels for failure alerts; strongly preferred over the deprecated module-managed Slack channel, which puts the alertlib token value into Terraform state ([])
-- `slack_channel` - Slack channel to send notifications to (e.g., "#1s-and-0s") (required when alerting enabled and notification_channel_ids is empty)
+- `slack_token_rotation` - Increment after rotating the alertlib Slack token to rewrite the channel's write-only token from the latest secret version (1)
+- `slack_channel` - Slack channel to send notifications to (e.g., "#1s-and-0s") (required when alerting enabled)
 - `slack_mention_users` - List of Slack users or groups to mention in alerts (e.g., ["@user", "@group"]) ([])
 - `alert_project_id` - GCP project ID where monitoring and alerting resources will be created (defaults to project_id) (null)
 
@@ -427,11 +427,13 @@ gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest ./jobs/yo
 The module supports optional Slack alerting for job failures. When enabled, it creates:
 
 - **Monitoring policies**: Cloud Monitoring alert policies for different failure scenarios
-- **Notification channel wiring**: either pre-created channels you pass in, or (deprecated) a module-managed Slack channel
+- **Slack notification channel**: fully Terraform-managed, with the token kept out of state
 
-**Pass `notification_channel_ids` (strongly preferred).** Provide the full resource names (`projects/PROJECT/notificationChannels/ID`) of one or more pre-created Cloud Monitoring notification channels, and the alert policies use them directly. Terraform then never touches the Slack token. Create the channel once per project, ideally via the Cloud Console's Slack integration (an OAuth flow, so no token handling at all), and share it across jobs.
+**How the token is handled**: the module reads `Slack__API_token_for_alertlib` (Secret Manager, `khan-academy` project) with an ephemeral resource and writes it to the channel via the write-only `sensitive_labels.auth_token_wo` argument. Ephemeral values and write-only arguments are never persisted to Terraform state or saved plan files, so the token value cannot leak through state or plan artifacts (versions of this module before v0.4.0 used a data source, which persisted the token in both). Ensure your Terraform service account can read the secret.
 
-**Deprecated default (empty `notification_channel_ids`)**: the module creates a Slack channel itself by fetching `Slack__API_token_for_alertlib` from Secret Manager in `khan-academy` with a data source. Terraform state stores the full data-source response, so the token VALUE ends up in state and in any saved plan file; this is how the token was exposed by the committed-tfplan incident. This path remains only for backward compatibility and will be removed in a future major version. If you must use it, ensure your Terraform service account can read the secret, and treat your state and plan artifacts as containing the token.
+**Requirements**: Terraform >= 1.11 and hashicorp/google >= 7.19.0 (write-only `sensitive_labels` support).
+
+**Rotation**: after adding a new secret version, bump `slack_token_rotation`; the next apply re-reads the latest version and rewrites the channel token.
 
 ### Enabling Alerting
 
