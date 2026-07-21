@@ -261,6 +261,7 @@ module "data_processor" {
 ### Alerting (optional)
 
 - `enable_alerting` - Whether to enable alerting for job failures (true)
+- `slack_token_rotation` - Increment after rotating the alertlib Slack token to rewrite the channel's write-only token from the latest secret version (1)
 - `slack_channel` - Slack channel to send notifications to (e.g., "#1s-and-0s") (required when alerting enabled)
 - `slack_mention_users` - List of Slack users or groups to mention in alerts (e.g., ["@user", "@group"]) ([])
 - `alert_project_id` - GCP project ID where monitoring and alerting resources will be created (defaults to project_id) (null)
@@ -426,9 +427,13 @@ gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/YOUR_JOB_NAME:latest ./jobs/yo
 The module supports optional Slack alerting for job failures. When enabled, it creates:
 
 - **Monitoring policies**: Cloud Monitoring alert policies for different failure scenarios
-- **Slack notification channel**: Direct integration with Slack using the Slack API token from Secret Manager
+- **Slack notification channel**: fully Terraform-managed, with the token kept out of state
 
-**Note**: The module automatically fetches the Slack API token from Secret Manager in the `khan-academy` project (secret: `Slack__API_token_for_alertlib`). Ensure your Terraform service account has access to read this secret.
+**How the token is handled**: the module reads `Slack__API_token_for_alertlib` (Secret Manager, `khan-academy` project) with an ephemeral resource and writes it to the channel via the write-only `sensitive_labels.auth_token_wo` argument. Ephemeral values and write-only arguments are never persisted to Terraform state or saved plan files, so the token value cannot leak through state or plan artifacts (versions of this module before v0.4.0 used a data source, which persisted the token in both). Ensure your Terraform service account can read the secret.
+
+**Requirements**: Terraform >= 1.11 and hashicorp/google >= 7.19.0 (write-only `sensitive_labels` support).
+
+**Rotation**: after adding a new secret version, bump `slack_token_rotation`; the next apply re-reads the latest version and rewrites the channel token.
 
 ### Enabling Alerting
 

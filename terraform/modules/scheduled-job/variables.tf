@@ -202,6 +202,12 @@ variable "enable_alerting" {
   default     = true
 }
 
+variable "slack_token_rotation" {
+  description = "Increment after rotating Slack__API_token_for_alertlib. The token is read ephemerally (never persisted to state or plans) and written to the notification channel via a write-only argument; bumping this counter is what triggers rewriting the channel's token from the latest secret version."
+  type        = number
+  default     = 1
+}
+
 variable "slack_channel" {
   description = "Slack channel to send notifications to (e.g., '#1s-and-0s')"
   type        = string

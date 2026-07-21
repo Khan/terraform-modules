@@ -3,12 +3,15 @@
 
 # Required providers
 terraform {
-  required_version = ">= 1.3.0"
+  # 1.11+ for write-only arguments (1.10 introduced ephemeral resources).
+  required_version = ">= 1.11.0"
 
   required_providers {
     google = {
+      # 7.19.0 added the write-only sensitive_labels variants
+      # (auth_token_wo) on google_monitoring_notification_channel.
       source  = "hashicorp/google"
-      version = ">= 6.0.0"
+      version = ">= 7.19.0"
     }
     archive = {
       source  = "hashicorp/archive"
@@ -288,8 +291,12 @@ resource "google_cloud_scheduler_job" "job_scheduler" {
 
 # Alerting resources (only created when enable_alerting is true)
 
-# Fetch Slack API token from Secret Manager
-data "google_secret_manager_secret_version" "slack_token" {
+# Read the Slack API token ephemerally: the value is available to this run at
+# plan/apply time but is never persisted to Terraform state or saved plan
+# files. A regular data source would store its full response, including
+# secret_data, in both; that is how this token was exposed by the
+# committed-tfplan incident.
+ephemeral "google_secret_manager_secret_version" "slack_token" {
   count = var.enable_alerting ? 1 : 0
 
   project = "khan-academy"
@@ -298,7 +305,6 @@ data "google_secret_manager_secret_version" "slack_token" {
 
 locals {
   alert_project_id = var.alert_project_id != null ? var.alert_project_id : var.project_id
-  slack_auth_token = var.enable_alerting ? data.google_secret_manager_secret_version.slack_token[0].secret_data : null
   slack_cc_mention = length(var.slack_mention_users) > 0 ? "\n\nCC: ${join(" ", var.slack_mention_users)}" : ""
   
   # Console URLs for functions and jobs
@@ -319,7 +325,13 @@ resource "google_monitoring_notification_channel" "slack_channel" {
   }
 
   sensitive_labels {
-    auth_token = local.slack_auth_token
+    # Write-only: the token is sent to the Monitoring API but never stored in
+    # Terraform state or plan files. The ephemeral read above re-resolves the
+    # latest secret version on each run; the _wo_version counter controls
+    # when the API value is actually rewritten, so bump slack_token_rotation
+    # after rotating the secret.
+    auth_token_wo         = ephemeral.google_secret_manager_secret_version.slack_token[0].secret_data
+    auth_token_wo_version = var.slack_token_rotation
   }
 }
 
