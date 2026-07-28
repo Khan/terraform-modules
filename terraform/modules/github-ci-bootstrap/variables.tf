@@ -46,10 +46,19 @@ variable "target_projects" {
 }
 
 
+# No default on purpose. The old default trusted both "main" and "master",
+# but a repository only protects the branch it actually uses; the other name
+# is an ordinary branch anyone with push access can create, and a workflow on
+# it could impersonate the read/write service account and deploy to
+# production without review. Each caller must name its real deploy branch(es)
+# explicitly.
 variable "write_branch_patterns" {
-  description = "List of branch patterns that are allowed to use the read/write service account (defaults to main and master)"
+  description = "List of branch names allowed to impersonate the read/write service account (e.g. [\"master\"]). List only branches that are protected in the GitHub repository, normally just the default branch; every branch listed here is a path to production deploys."
   type        = list(string)
-  default     = ["main", "master"]
+  validation {
+    condition     = length(var.write_branch_patterns) > 0
+    error_message = "write_branch_patterns must name at least one branch (e.g. [\"master\"])."
+  }
 }
 
 variable "terraform_state_bucket" {
