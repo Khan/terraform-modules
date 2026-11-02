@@ -308,8 +308,8 @@ locals {
   slack_cc_mention = length(var.slack_mention_users) > 0 ? "\n\nCC: ${join(" ", var.slack_mention_users)}" : ""
   
   # Console URLs for functions and jobs
-  function_console_url = "https://console.cloud.google.com/run/detail/${var.region}/${var.job_name}/observability/logs?project=${var.project_id}"
-  job_console_url      = "https://console.cloud.google.com/run/jobs/detail/${var.region}/${var.job_name}/observability/logs?project=${var.project_id}"
+  function_console_url = "https://console.cloud.google.com/run/details/${var.region}/${var.job_name}/observability/logs?project=${var.project_id}"
+  job_console_url      = "https://console.cloud.google.com/run/jobs/details/${var.region}/${var.job_name}/observability/logs?project=${var.project_id}"
 }
 
 # Monitoring notification channel for Slack
